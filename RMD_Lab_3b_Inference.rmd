@@ -1,0 +1,1006 @@
+---
+title: "LAB 3b - A review of inference concepts - Statistical inference"
+author: "Emanuele"
+date: "18/10/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+
+## Install the package "DAAG"  ##
+install.packages("DAAG")
+```
+
+
+
+# Introduction to statistical inference
+
+## Example: temperatures ##
+
+```{r}
+```
+
+
+```{r}
+hist(nhtemp,freq=F,main=' ',xlab=' ',ylab=' ')
+lines(density(nhtemp),lwd=2)
+lines(seq(45,60,0.01),dnorm(seq(45,60,0.01),mean(nhtemp),
+                            sqrt(var(nhtemp))),col='red',lwd=2)
+```
+
+
+```{r}
+mean(nhtemp)
+median(nhtemp)
+var(nhtemp)
+sd(nhtemp)
+```
+
+
+```{r}
+mean((nhtemp-mean(nhtemp))^3)/sqrt(var(nhtemp))^3
+mean((nhtemp-mean(nhtemp))^4)/sqrt(var(nhtemp))^4
+```
+
+
+## Example: roller data ##
+
+```{r}
+library(DAAG)
+plot(depression ~ weight, data = roller, 
+     xlim=c(0,1.04*max(weight)),ylim=c(0,1.04*max(depression)),
+     xlab = 'Weight of roller', ylab = 'Depression', pch = 16)
+roller.lm <- lm(depression ~ weight,data=roller)
+abline(roller.lm,col='red',lwd=2)
+```
+
+
+```{r}
+roller.lm$coef
+
+X <- cbind(1, roller$weight)
+y <- roller$depression
+
+solve(t(X)%*%X)%*%(t(X)%*%y)
+```
+
+```{r}
+
+```
+
+
+
+### Basic concepts of point estimation ###
+
+## Example: elastic bands ##
+
+```{r}
+ambient <- c(254, 252, 239, 240, 250, 256, 267, 249, 259, 269)
+
+heated <- c(233, 252, 237, 246, 255, 244, 248, 242, 217, 257, 254)
+```
+
+
+diff. delle medie campionarie:
+
+```{r}
+mean(ambient)-mean(heated)
+```
+
+Calcolo stimatore varianza:
+```{r}
+s2p <- ((var(heated))*(length(heated)-1)
+        +(var(ambient))*(length(ambient)-1))/
+        (length(heated)+length(ambient)-2)
+s2p
+```
+
+
+Standard error della diff: 
+```{r}
+SED = sqrt(s2p)*sqrt((1/length(heated))+(1/length(ambient)))
+SED
+```
+
+
+```{r}
+(mean(ambient)-mean(heated))/SED
+```
+
+
+## Point estimators and their properties
+
+### Precisione di uno stimatore su campioni grandi
+
+Vogliamo vedere che più è grande un campione, più uno stimatore sarà preciso:
+
+```{r}
+
+# 10K dati indipendenti con modello esponenziale
+N <- 10000
+set.seed(10)
+samp <- rexp(N,1/5)
+
+# media, varianza e standard deviation ()
+mean(samp) 
+var(samp)
+sd(samp)
+```
+
+Osservo che:
+ * media è prossima al valore reale
+ * la dev standard è prossima al valore reale
+ 
+ 
+### Modello e distrib di probabilità di uno stimatore
+
+Qual è la distrib. di probabilità di una media campionaria su campioni piccoli?
+
+* 10k campioni di dim 10
+* 10K valori per la media campionaria
+
+
+```{r}
+set.seed(10)
+repl<-10000
+n <- 10
+sampmean <- NULL
+
+
+for (i in 1:repl)
+{
+  # ad ogni giro, simulo un campione e incremento vettore
+  # delle medie campionarie
+  sam <- rexp(n,1/5)
+  sampmean <- c(sampmean,mean(sam))
+  
+}
+```
+
+Sulla media campionaria, calcolo media e varianza (+ oss. istogramma)
+
+```{r}
+hist(sampmean, freq = F)
+lines(density(sampmean))
+mean(sampmean)
+sd(sampmean)
+```
+
+
+La media della media campionaria tende al valore reale. 
+
+Lo standard error della media campionaria è $\sigma / \sqrt n$
+
+
+### Verifica che la var. campionaria è uno stimatore non distorto della varianza
+
+* var. campionaria <- stimatore non distorto di $\sigma ^ 2$
+* var. NON campionaria <- sotto-stima $\sigma ^ 2$ 
+
+VERIFICHIAMO:
+
+```{r}
+set.seed(10)
+repl<-10000
+n <- 10
+sampvar <- NULL
+variance <- NULL
+for (i in 1:repl)
+{
+  sam <- rexp(n,1/5)
+  
+  # calcolo le var campionarie
+  sampvar <- c(sampvar,var(sam))
+  
+  # calcolo le var non campionarie
+  variance <- c(variance,var(sam)*9/10)
+}
+```
+
+
+Oss. i due valori medi:
+```{r}
+mean(sampvar)
+mean(variance)
+```
+
+Oss. che quella corretta mi da un valore simile, quella non corretta invece mi da un 
+valore sotto-dimensionato
+
+# Basic concepts of interval estimation
+
+## Confidence interval for the mean
+
+Verifico che gli intervalli di conf. possano effettivamente contenere un certo
+
+```{r}
+# Step 1)
+set.seed(12)
+
+# Step 2)
+# contatore degli intervalli OK
+flag <- 0 
+
+
+# ---------------------------------------
+# (SEPARO IL PRIMO STEP DAI RESTANTI 99)
+
+# Step 3)
+y <- rnorm(15)
+# Step 4)
+ci <-c(mean(y)-qt(0.975,df=14)*sd(y)/sqrt(15),
+       mean(y)+qt(0.975,df=14)*sd(y)/sqrt(15))
+
+# Step 5)
+
+# verifico se l'intervallo contiene il parametro
+if(ci[1]*ci[2]<0){
+  # (disegno intervallo nero e incr. contatore)
+  plot(c(1,1),ci,ylim=c(-1.1,1.2), xlim=c(0,100),
+     type='l',xlab=' ',ylab=' ',lwd=2)
+  flag <- flag+1
+} 
+if(ci[1]*ci[2]>0){
+  # non aggiornare il contatore 
+  plot(c(1,1),ci,ylim=c(-1.2,1.2), xlim=c(0,100),
+     type='l',xlab=' ',ylab=' ',col='red',lwd=2)
+}
+
+# ---------------------------------------
+# (RESTANTI 99 STEP)
+
+for (i in 2:100){
+  # Step 3)
+  y <- rnorm(15)
+  # Step 4)
+  ci <-c(mean(y)-qt(0.975,df=14)*sd(y)/sqrt(15),
+       mean(y)+qt(0.975,df=14)*sd(y)/sqrt(15))
+  # Step 5)
+  if(ci[1]*ci[2]<0){
+    lines(c(i,i),ci,type='l',lwd=2)
+    flag <- flag+1
+    }
+  if(ci[1]*ci[2]>0){
+    lines(c(i,i),ci,type='l',col='red',lwd=2)
+  }
+}
+
+
+# Step 6)
+abline(0,0)
+
+```
+
+
+Calcolo della copertura dell'intervallo:
+```{r}
+# Step 7)
+flag/100
+```
+
+
+
+
+## Confidence intervals with hypothesis testing commands
+
+In R, esistono già strumenti che forniscono gli intervalli di confidenza e il loro lv. di confidenza.
+
+```{r}
+set.seed(12)
+y <- rnorm(15)
+ci <-c(mean(y)-qt(0.975,df=14)*sd(y)/sqrt(15),
+       mean(y)+qt(0.975,df=14)*sd(y)/sqrt(15))
+print(ci)
+
+t.test(y)
+
+attributes(t.test(y))
+
+# di default usa copertura 95%, ma si può modificare 
+t.test(y)$conf.int
+```
+
+
+# Basic concepts of hypothesis testing
+
+
+## Teoria
+
+### I test 
+
+Test <- tanti tipi
+
+* parametrici <- basati su modelli
+* non parametrici <- non ...
+* altri tipi (eg goodness of fit)
+
+
+Carat. comuni:
+
+* stessa base
+* posso valutare un test anche senza conoscere come è stato fatto
+
+
+### Il problema di verifica d'ipotesi (mod. parametrico)
+
+
+Ho un'ipotesi del tipo ...
+
+Devo valutare se accettarla o rifiutarla (in base ai dati raccolti)
+
+O meglio, ho due ipotesi non sovrapposte
+
+$H_0 : \theta = \theta_0 $ <- ipotesi che vorrei validare (ipotesi nulla)
+
+$H_1 : \theta != \theta_0$ 
+
+Quando accetto uno, accetto l'altra.
+
+
+* sintetizzare i dati
+* definire opportuna statistica campionaria (e.g., prendo uno stimatore, lo modifico un po' e lo uso per compiere la scelta)
+
+
+### Gli errori e il 
+
+Quando accetto/rifiuto un ipotesi, incorro in errori <- due tipi:
+
+* "di tipo 1" <- 
+* "di tipo 2" <- 
+
+di solito voglio minimizzare la prob. degli errori di primo tipo 
+
+=> gli fisso una probabilità $\alpha$.
+
+...
+
+
+### Il p-value
+
+
+* probability, under the null hypothesis, of obtaining a test statistic value, 
+across (hypothetical) repeated random samples, that is at least as extreme 
+(against H0) as that which was observed.
+
+* probabilità, in ipotesi nulla, di ottenere un valore statistico di prova,
+attraverso (ipotetici) campioni casuali ripetuti, che è almeno altrettanto estremo
+(contro H0) come quello che è stato osservato (??????????)
+
+* "measure of closeness of the data to the null hypothesis"
+  
+alpha <- "quanto dobbiamo essere prudenti per accettare l'ipotesi nulla"
+
+
+
+## Example: maximum temperature
+
+```{r}
+t81 <- c(39,39,40,33,36,40,37,41,39,34,42,41,
+         42,44,42,42,39,42,41,40,43,43,40,39,37)
+mean(t81)
+median(t81)
+sd(t81)
+sem <- sd(t81)/sqrt(length(t81))
+sem
+qt(0.025,24,lower.tail = FALSE)
+```
+
+IPOTESI: "quello che ho osservato quest'anno, è in linea con la temp. media che ho rilevato in passato?" 
+
+So che la temperatura media in passato è 37.5 cm. 
+
+Test d'ipotesi, con ipotesi nulla $mu=37.5$.
+
+
+
+```{r}
+c(mean(t81)-qt(0.025,24,lower.tail = FALSE)*sem,
+  mean(t81)+qt(0.025,24,lower.tail = FALSE)*sem)
+```
+
+
+```{r}
+(mean(t81)-37.5)/sem
+```
+
+
+
+### Strumento di R
+
+"fai un test d'ipotesi sul vettore con valore per l'ipotesi nulla ... "
+
+```{r}
+t.test(t81,mu=37.5)
+```
+
+* osservo che ho un p-value basso (i dati sono in disaccordo molto forte con l'ipotesi nulla)
+* osservo che un intervallo di confidenza del 95% non contiene l'ipotesi nulla 
+
+
+ho usato due approcci <- def. di intervallo di confidenza e p-value
+
+
+```{r}
+par(mfrow=c(1,2))
+
+# disegno funz. di T-student ad n gradi di libertà prendendo come 
+# parametro l'ipotesi nulla.
+xx<-seq(-5,5,0.01)
+plot(xx,dt(xx,24),type='l',lwd=2,cex.axis=1.3,
+     ylim=c(0,0.45),xlab=" ",ylab=" ")
+
+
+cord.x <- c(-5,seq(-5,-2.064,0.01),-2.064) 
+cord.y <- c(0,dt(seq(-5,-2.064,0.01),24),0) 
+polygon(cord.x,cord.y,col='skyblue')
+cord.x <- c(2.064,seq(2.064,5,0.01),2.064) 
+cord.y <- c(0,dt(seq(2.064,5,0.01),24),0) 
+polygon(cord.x,cord.y,col='skyblue')
+abline(0,0,lwd=2)
+lines(4.119,0,type='p',lwd=3,col='red')
+
+
+xx1<-seq(-5,-4.119,0.01)
+xx2<-seq(4.119,5,0.01)
+plot(xx1,dt(xx1,24),type='l',lwd=3,cex.axis=1.3,
+     xlim=c(-5,5),ylim=c(0,0.45),xlab=" ",ylab=" ",col='red')
+lines(xx2,dt(xx2,24),lwd=3,col='red')
+yy <- seq(-4.119,4.119,0.01)
+lines(yy,dt(yy,24),type='l',lwd=2)
+lines(c(-4.119,4.119),c(0,0),lwd=2)
+par(mfrow=c(1,1))
+```
+
+* disegno t-student centrata nell'ipotesi di nulla
+* le code mi rappresentano la probabilità che assegnamo all'errore di primo tipo
+* dove cade il valore osservato? [...formula...]
+
+
+p-value <- prob. che la statistica test assuma un valore pari a quello osservato (o maggiore) di quello osservato. 
+
+consente di determinare la "forza" con cui accetto o con cui rifiuto.
+
+
+### Interp. sbagliate del p-value
+
+ERRORE: 
+* "la prob. che l'ipotesi nulla sia vera"
+* "la prob. che i dati siano casuali"
+
+
+<em>CORRETTA : "quanto sono compatibili i dati con una certa ipotesi"</em>
+
+
+Altri errori: 
+* non basare decisioni SOLO sul p-value, 
+* far presente in modo trasparente assunzioni, tipo di dati, ecc...
+
+
+
+## Example: physical activity (situaz. Bernoulliana)
+
+```{r}
+p <- 108/200
+p
+se <- sqrt(p*(1-p)/200)
+se
+z <- (p-0.492)/sqrt(0.492*(1-0.492)/200)
+z
+z^2
+2*pnorm(-abs(z))
+```
+
+Campione di dim elevata => media campionaria gaussiana!!!
+
+=> posso usare un test simile (in particolare un test Z)
+
+confronto p con p cappello 
+
+distribuzione circa normale standard.
+
+
+Domanda: "siamo in linea con la prob. media nazionale?"
+
+```{r}
+
+# proportion test
+prop.test(108, # No successi
+          200, # No prove
+          
+          # (in alternativa potevo mettere vettore di successo/insucesso)
+          
+          p = 0.492, # ipotesi nulla
+          
+          correct = FALSE # test CIRCA gaussiani => applico procedure [...]
+          )
+```
+
+Nei dati non c'è sufficiente sicurezza per accettare l'ipotesi nulla
+
+Z, X-squared <- [...]
+
+vedi slide
+sappi che R usa $z^2$
+
+```{r}
+attributes(prop.test(108, 200, p = 0.492,
+                     correct = FALSE))
+```
+
+```{r}
+
+
+prop.test(108, 200, p = 0.492,correct = FALSE)$stat
+```
+
+
+## Example: white and red wines
+
+
+Due campioni che ipotiziamo indipendenti e provvenieniti da gauss.
+```{r}
+xw <- c(28.4,32.2,37.0,32.4,33.2,18.7,33.7,50.0,49.8,34.5,45.8,33.1,
+        24.1,31.0,24.8,19.0,17.5,19.4,24.7,9.9,29.1,18.4,34.7,29.3,
+        15.6,20.7,22.2,18.7,11.8,12.1)
+xr <- c(7.3,27.9,20.4,18.5,6.6,9.1,1.5,13.9,11.1,34.7,57.0,1.3,17.6,
+        6.1,22.9,27.3,30.0,19.6,21.8,18.2,8.6,12.8,18.6,29.4,28.5,
+        16.6,30.1,27.2,19.6,16.3,29.9,26.3,26.5,24.3,19.1,28.3,36.8)
+```
+
+
+
+```{r}
+mean(xw)
+median(xw)
+var(xw)
+sd(xw)
+```
+
+
+```{r}
+mean(xr)
+median(xr)
+var(xr)
+sd(xr)
+```
+
+
+[SLIDE]
+
+Le due varianze sono uguali o diverse? 
+
+faccio un test sulle varianze (test F)
+
+```{r}
+var(xw)
+var(xr)
+F <- var(xw)/var(xr)
+F
+2*min(pf(F,length(xw)-1,length(xr)-1),
+      pf(F,length(xw)-1,length(xr)-1,lower.tail = FALSE)) # p-value
+```
+
+### Test di varianze in R
+```{r}
+var.test(xw, xr, ratio = 1)
+```
+
+p-value <- altro => dati supportano ipotesi d'ugualianza
+
+
+```{r}
+sem2x <-var(xw)/length(xw)
+sem2x
+sem2y <-var(xr)/length(xr)
+sem2y
+```
+
+
+```{r}
+s2p <- (var(xw)*(length(xw)-1)+var(xr)*(length(xr)-1))/
+  (length(xw)+length(xr)-2)
+s2p
+```
+
+
+```{r}
+sedt <- sqrt(s2p)*sqrt(1/length(xw)+1/length(xr))
+sedt
+sedw <- sqrt(sem2x+sem2y)
+sedw
+```
+
+
+```{r}
+tt <- (mean(xw)-mean(xr))/sedt # equal variances
+tt
+tw <- (mean(xw)-mean(xr))/sedw # unequal variances
+tw
+```
+
+
+### Test t diverso in base alla varianza (= o no)
+```{r}
+t.test(xw,xr,var.equal = TRUE)  # equal variances (QUELLO GIUSTO IN QUESTO CASO)
+t.test(xw,xr,var.equal = FALSE)  # unequal variances
+```
+
+
+p-value basso, ma non sotto 0.01
+
+=> dati <- evidenza abbastanza forte contro ipotesi nulla
+
+ora dipende da che $\alpha$ voglio tenere (e.g., con alpha a 0.05 accetterei, con alpha a 0.01 rifiuterei)
+
+Qui entrerebbe in gioco l'esperienza per scegliere che confidenza tenere
+
+Valutare di raccogliere altri dati. 
+
+NOTA: se avessi avuto varianze diverse avrei usato test di Welch (un po' diverso)
+
+
+
+
+## NOTE SUI TEST STATISTICI
+
+* noi ne abbiamo visti un paio, ma esistono tanti
+* più che gli aspetti matematichi è importante sapere come interpretarli
+
+
+## Example: temperatures
+
+Due campioni di due anni diversi. 
+
+Domanda: la temperatura massima è piu o meno la stessa?
+
+$H_0 : | media_80 - media_81 | = 0$
+
+DIFF caso vini bianchi/rossi <- I DATI NON SONO INDIPENDENTI!!!
+
+le oss. sono "accoppiate" (stessa stazione di prima)
+
+
+(es. analogo: farmaco, gruppo di N persone,
+
+misuro colesterolo, 
+do farmaco, 
+ri-misuro colesterolo
+)
+
+=> devo ragionare con le "dipendenze a coppie".
+
+
+```{r}
+t80 <- c(36,35,36,34,37,40,37,41,38,32,36,39,36,40,37,37,38,40,37,39,
+         39,41,38,38,35)
+t81 <- c(39,39,40,33,36,40,37,41,39,34,42,41,42,44,42,42,39,42,41,40,
+         43,43,40,39,37)
+summary(t80)
+summary(t81)
+
+```
+
+```{r}
+diff <- t80-t81
+summary(diff)
+sd(diff)/sqrt(length(diff)) # the standard error of the difference
+```
+
+
+```{r}
+mean(diff)/(sd(diff)/sqrt(length(diff)))
+
+```
+
+in R posso utilizzare T.Test, ma passando un'opzione per dati appaiati
+```{r}
+t.test(t80,t81,pair=TRUE)
+```
+
+
+p-value molto basso => sono molto critico verso l'ipotesi nulla 
+
+
+## Non-parametric testing procedures
+
+
+Tecniche per fare test SENZA conoscere il modello dei dati
+
+Posso fare assunzioni più deboli
+
+
+* simm. distrib di probabilità 
+
+
+### Test di Will-Cocxon
+
+Analogo non parametrico del test T, ma senza assunzione gaussiani
+
+```{r}
+wilcox.test(xw,xr)
+wilcox.test(t80,t81, paired=T)
+# oss. parametri simili
+```
+
+NON fa test di confronto tra medie ma tra MEDIANE 
+(non posso individuare un mod. parametrico basato sulla media)
+
+
+### Consiglio: 
+
+se ho pochi dati, parto da un test non parametrico
+
+
+
+# Confronto tra medie su dati non gaussiani
+
+## Example: labor training program (Bernoulli)
+
+Dati binari (bernoulliani)
+
+voglio capire se la freq. di un certo attr. è la stessa tra due gruppi.
+
+* se ho dati numerosi <- teorema limite centrale
+* se non ho questa condizione <- TEST AD HOC (variano da caso a caso)
+
+```{r}
+px <- 217/297
+px
+py <- 65/128
+py
+
+# probabilità totale
+p <- (217+65)/(297+128)
+p
+```
+
+
+Voglio valutare se la prob. osservata è la stessa
+
+Gruppi indipendenti.
+
+ipotesi nulla: stessa freq. tra i due gruppi. 
+
+### Scelta statistica test 
+
+STATISTICA TEST: differenza tra le freq. normaliz. con diff. per standard error
+
+```{r}
+sed <- sqrt(p*(1-p)*(1/297+1/128))
+sed
+
+z <- (px-py)/sed
+z
+
+2*pnorm(abs(z),lower.tail = FALSE)
+
+```
+
+
+
+### Test
+
+faccio un test di prob. con 
+
+```{r}
+z^2
+prop.test(c(217,65),c(297,128), correct = FALSE)
+```
+
+Prendo di nuovo z^2 => chi-quadro
+
+p-value basso => rifiuto l'ipotesi nulla => difficile che la diff sia uguale a 0
+
+### Chisq.test
+
+Valuta la dipendenza tra due variabili categoriali.
+
+Visto che ho dimostrato di avere prob. diverse, voglio vedere (in questo caso)
+se "l'abbandono dipende da un gruppo piuttosto che un'altro "
+
+```{r}
+# costruisco la matrice di contingenza come input
+X <- t(matrix(c(217,(297-217), 65,(128-65)),2,2))
+colnames(X) <- c("Drop_yes","Drop_no")
+row.names(X) <- c("Prog_yes","Prog_no")
+X
+
+chisq.test(X, correct=F)
+```
+
+Cosa ottengo:
+
+- statistica chi-quadro
+- gradi di libertà 
+- p-value 
+
+(corrispondente con quello che abbiamo visto prima)
+
+
+## Testing for correlation
+
+Dati numerici, due fenomeni x e y
+
+Voglio valutare la loro dipendenza (lineare)
+
+=> coeff. di correlazione (e.g., pearson)
+
+IP. nulla: correlaz. = 0
+
+IP. 1 : correlaz. > 0 
+
+=> test di correlazione (si basa su modifica di pearson)
+
+ASSUNZIONI: devo assumere che i dati siano (perlomento marginalmente) gaussiano
+
+* idealmente: GAUSSIANO BI-VARIATO
+* va bene che anche le due var. siano gaussiane per conto loro
+
+
+Se non posso fare l'assunzione, posso sempre usare test di Spearman e Kendall
+
+
+```{r}
+set.seed(442)
+n <- 100
+r <- 0.8
+x <- rnorm(100)
+y <- r*x + sqrt(1-r^2)*rnorm(n)
+```
+
+
+```{r}
+
+# prendo i 5 punti con le coord. più elevate e li modifico (x3)
+# (voglio creare artificialmente degli outlier)
+ii <- order(-x)
+x[ii[1:5]] <- x[ii[1:5]]*3
+```
+
+
+```{r}
+plot(x,y,xlab=' ',ylab=' ',xlim=c(-3,7),pch=16)
+
+# linea totale (tutti i dati)
+abline(lm(y~x),col=2,lwd=2)
+
+# linea solo con gli outlier artificiali
+abline(lm(y~x,subset=is.element(1:100,ii[1:5])),col=2,lty=2,lwd=2)
+
+# linea ignorando gli outlier artificiali
+abline(lm(y~x,subset=!is.element(1:100,ii[1:5])),col=2,lty=3,lwd=3)
+
+
+legend(4,-1, legend=c("Full", "Transformed", "Original"),lty=1:3, col="red")
+```
+
+(questo fa vedere che considerare o no gli outlyer influisce tanto sulla retta di regressione)
+
+
+```{r}
+
+# pearson e spearman su tutti i dati 
+cor(x,y,method='pearson')
+cor(x,y,method='spearman')
+
+# pearson e spearman senza outlyer 
+cor(x[-ii[1:5]],y[-ii[1:5]],method='pearson')
+cor(x[-ii[1:5]],y[-ii[1:5]],method='spearman')
+```
+
+OSS: vedo che pearson è abbastanza evidentemente influenzato dagli outlyer
+
+
+Facciamo un test d'ipotesi (sia con Pearson che con Spearman)
+
+```{r}
+cor.test(x,y,method='pearson')
+cor.test(x[-ii[1:5]],y[-ii[1:5]],method='pearson')
+```
+
+
+```{r}
+cor.test(x,y,method='spearman')
+cor.test(x[-ii[1:5]],y[-ii[1:5]],method='spearman')
+```
+
+Oss. per pearson p-value più basso se escludo gli outlier.
+
+Spearman no differenza
+
+
+# Basic concepts of model selection
+
+## Example: black cherry trees ##
+
+par(mfrow=c(1,2))
+mod1 <- lm(Volume ~ Girth, data = trees)
+mod11 <- lm(Volume ~ Height, data = trees)
+plot(Volume ~ Girth, data = trees,lwd=2,cex.lab=1.5)
+abline(mod1,lwd=2,col='red')
+plot(Volume ~ Height, data = trees,lwd=2,cex.lab=1.5)
+abline(mod11,lwd=2,col='red')
+par(mfrow=c(1,1))
+
+mod2 <- lm(Volume ~ Girth + Height, data = trees)
+
+logLik(mod1)
+AIC(mod1)
+BIC(mod1)
+logLik(mod2)
+AIC(mod2)
+BIC(mod2)
+
+AIC(mod2, k=log(length(trees$Volume)))
+
+# Initialise the CV index
+cv1 <- 0
+cv2 <- 0
+n <- length(trees$Volume)
+i <-1
+for (i in 1:n){
+# step 1
+mod1i <- lm(Volume ~ Girth, data = trees[-i,])
+mod2i <- lm(Volume ~ Girth + Height, data = trees[-i,])
+# step 2
+mu1 <- mod1i$coefficients[1] + mod1i$coefficients[2]*trees$Girth[i]
+mu2 <- mod2i$coefficients[1] + mod2i$coefficients[2]*trees$Girth[i] + 
+            mod2i$coefficients[3]*trees$Height[i]
+sd1 <- sqrt(sum(mod1i$residuals^2)/(n-3))
+sd2 <- sqrt(sum(mod2i$residuals^2)/(n-4))
+# step 3
+cv1 <- cv1 - log(dnorm(trees$Volume[i],mu1,sd1))
+cv2 <- cv2 - log(dnorm(trees$Volume[i],mu2,sd2))
+}
+cv1
+cv2
+
+
+### Contingency tables ###
+
+## Example: steel rods ##
+
+rods <- matrix(c(10, 102, 8, 34, 161, 5, 
+                 12, 79, 9, 10, 60, 10),nrow=4,byrow=TRUE)
+rods
+
+xtot <- apply(rods,1,sum)
+ytot <- apply(rods,2,sum)
+
+xtot <- as.matrix(xtot)
+ytot <- as.matrix(ytot)
+
+rods_ind <- xtot%*%t(ytot)/sum(xtot)
+rods_ind
+
+chisq_obsstat <- sum((rods-rods_ind)^2/rods_ind)
+chisq_obsstat
+
+1-pchisq(chisq_obsstat, 6)
+
+chisq.test(rods)
+residuals(chisq.test(rods))
+
+## Example: labor training program ##
+
+dropout <- matrix(c(63, 65, 80, 217), nrow=2, byrow=TRUE)
+colnames(dropout) <- c("yes","no")
+rownames(dropout) <- c("yes","no")
+names(dimnames(dropout)) <- c("program","high school graduate")
+dropout
+
+xtot <- apply(dropout,1,sum)
+ytot <- apply(dropout,2,sum)
+xtot <- as.matrix(xtot)
+ytot <- as.matrix(ytot)
+
+xtot%*%t(ytot)/sum(xtot)
+
+chisq.test(dropout,correct =FALSE)
+
+
