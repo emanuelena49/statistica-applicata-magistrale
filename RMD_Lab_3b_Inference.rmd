@@ -916,8 +916,59 @@ Spearman no differenza
 
 # Basic concepts of model selection
 
-## Example: black cherry trees ##
+## Criteri classici 
 
+### Logsimilianza
+
+...
+
+### Divergenza di Kullback-Leibler
+
+integrale della differenza del logaritmo del valore reale e del logaritmo del valore atteso
+
+### Criterio di Akaike (AIC)
+ 
+Criterio di akaike <- metodo per misurare "adattezza" di un modello 
+
+
+criterio di Akaike:
+
+$ AIC = -2l(\theta cappello; y) + 2*dim(\theta) $
+
+* logsimiglianza
+* numero di parametri 
+
+voglio scegliere modello con AIC più basso (compensanzione tra "il fit del mode ")
+e possibilmente poco complesso (complessità < rapp. dal numero di parametri)
+
+### Bayesian Information Criteria (BIC)
+
+$ BIC = -2l(\theta cappello; y) + log(n) * dim(\theta)$
+
+BIC <- penalizza di più i modelli con tanti parametri, specie se il DS è grande.
+
+## Altri criteri
+
+### Criteri di Cross-Validation
+
+* partiamo dalla divergenza di Kullback-Leiber 
+* oss. che primo termine della differenza NON dipende dal modello
+* => minimizzazione <- si basa su minimizzazione secondo termine, cioè l'integrale del log del valore atteso con modello 
+
+=> stimo questo valore con una somma 
+
+$ CV = - sommatoria_{1->n} (log f(y_i; \theta cappello_{-i}) ) $
+
+
+In pratica, sommo il (log del) valore atteso per ogni i escludendo i nel parametro stimato
+
+
+## Example: black cherry trees
+
+cerco di usare diametro e altezza come regressori lineari per il volume.
+
+
+```{r}
 par(mfrow=c(1,2))
 mod1 <- lm(Volume ~ Girth, data = trees)
 mod11 <- lm(Volume ~ Height, data = trees)
@@ -926,49 +977,136 @@ abline(mod1,lwd=2,col='red')
 plot(Volume ~ Height, data = trees,lwd=2,cex.lab=1.5)
 abline(mod11,lwd=2,col='red')
 par(mfrow=c(1,1))
+```
 
+
+Primo modello <- solo diametro 
+Seondo modello che tiene conto di diametro e altezza (si dice "nested")
+
+
+```{r}
 mod2 <- lm(Volume ~ Girth + Height, data = trees)
 
+```
+
+
+### calcolo parametri 
+
+```{r}
 logLik(mod1)
 AIC(mod1)
 BIC(mod1)
+```
+
+```{r}
 logLik(mod2)
 AIC(mod2)
 BIC(mod2)
+```
 
+
+
+```{r}
+# NOTA: oss. che posso stabilire il peso della penalizzazione 
+# sulla dimensione di theta (di default, k=2)
+
+# NOTA2: con k = log n ho il criterio BIC
 AIC(mod2, k=log(length(trees$Volume)))
 
+```
+
+
+### Calcolo del criterio di CV
+
+```{r}
 # Initialise the CV index
 cv1 <- 0
 cv2 <- 0
 n <- length(trees$Volume)
 i <-1
 for (i in 1:n){
-# step 1
-mod1i <- lm(Volume ~ Girth, data = trees[-i,])
-mod2i <- lm(Volume ~ Girth + Height, data = trees[-i,])
-# step 2
-mu1 <- mod1i$coefficients[1] + mod1i$coefficients[2]*trees$Girth[i]
-mu2 <- mod2i$coefficients[1] + mod2i$coefficients[2]*trees$Girth[i] + 
-            mod2i$coefficients[3]*trees$Height[i]
-sd1 <- sqrt(sum(mod1i$residuals^2)/(n-3))
-sd2 <- sqrt(sum(mod2i$residuals^2)/(n-4))
-# step 3
-cv1 <- cv1 - log(dnorm(trees$Volume[i],mu1,sd1))
-cv2 <- cv2 - log(dnorm(trees$Volume[i],mu2,sd2))
+  
+  # step 1: Per ogni ciclo, stimo il modello senza l'i-esimo 
+  mod1i <- lm(Volume ~ Girth, data = trees[-i,])
+  mod2i <- lm(Volume ~ Girth + Height, data = trees[-i,])
+  
+  
+  # step 2: media e dev standard stimata
+  mu1 <- mod1i$coefficients[1] + mod1i$coefficients[2]*trees$Girth[i]
+  mu2 <- mod2i$coefficients[1] + mod2i$coefficients[2]*trees$Girth[i] + 
+              mod2i$coefficients[3]*trees$Height[i]
+
+  sd1 <- sqrt(sum(mod1i$residuals^2)/(n-3))
+  sd2 <- sqrt(sum(mod2i$residuals^2)/(n-4))
+  
+  
+  # step 3: effettuo la valutazione escludendo ...
+  cv1 <- cv1 - log(dnorm(trees$Volume[i],mu1,sd1))
+  cv2 <- cv2 - log(dnorm(trees$Volume[i],mu2,sd2))
 }
+
 cv1
 cv2
+```
+
+Osservazione: 
+
+in base a tutti i criteri visti, il modello 2 è migliore del modello 1
 
 
-### Contingency tables ###
+
+
+# Contingency tables
+
+## Teoria
+
+### Il modello multi-nomiale
+
+Situazione:
+
+* dati raccolti <- relativi a var non-numeriche
+* descrizione dei conteggi tramite tabelle di contingenza 
+
+
+eg, 
+
+* 2 variabili
+* variabile 1 con livelli  $x_1, ... , x_r$
+* variabile 2 con livelli $y_1, ... , y_c$
+* n osservazioni
+
+Che modello posso usare? 
+
+Modello "multi-nomiale" <- (generaliz. del bi-nomiale per due variabili con più opzioni)
+
+n prove, tanti esiti quante le possibili comb. di categorie $r*c$
+
+Non ho una probabilità ma una matrice di dim. $r * c$ (per ogni coppia, prob. che i implica j)
+
+
+### Cosa posso studiare?
+
+H0: ipotesi di indipendenza tra le variabili
+
+* calcolo prob. osservate
+* calcolo prob. attese con ipotesi di indipendenza [...]
+* statistica Chi-quadro [...]
+* valore ricavato <- misurato con p-value
+
+
+Bene con n grande, e tante comb.
+
 
 ## Example: steel rods ##
 
+```{r}
 rods <- matrix(c(10, 102, 8, 34, 161, 5, 
                  12, 79, 9, 10, 60, 10),nrow=4,byrow=TRUE)
 rods
+```
 
+
+```{r}
 xtot <- apply(rods,1,sum)
 ytot <- apply(rods,2,sum)
 
@@ -978,21 +1116,67 @@ ytot <- as.matrix(ytot)
 rods_ind <- xtot%*%t(ytot)/sum(xtot)
 rods_ind
 
+
+```
+
+
+```{r}
 chisq_obsstat <- sum((rods-rods_ind)^2/rods_ind)
 chisq_obsstat
 
 1-pchisq(chisq_obsstat, 6)
 
+```
+
+
+```{r}
 chisq.test(rods)
+
+```
+
+
+### I residui
+
+E se da test chi-quadro risulta che c'è dipendenza?
+
+cella per cella calcolo i residui normalizzati del test.
+
+Significato: osservo come i risultati reali differiscono da quelli attesi
+
+```{r}
 residuals(chisq.test(rods))
+```
 
-## Example: labor training program ##
+## Example: labor training program (stessa tecnica, constesto diverso)
 
+
+NOTA: questa procedura si può applicare anche in contesti diversi:
+
+* confronto di due campioni bernoulliani
+* contronto di due campioni multi-nomiali 
+
+Riconduco dati a matrice [...] e applico stesso strumento chisq.test
+
+Perchè è vantaggioso?
+
+* posso generalizzare avendo anche più di due campioni 
+* posso anche considerare situazioni con più categorie
+
+
+domanda <- evolve:
+
+"c'è correlazione tra si/no?" -> "la distrib. di probabilità è la stessa?"
+
+
+```{r}
 dropout <- matrix(c(63, 65, 80, 217), nrow=2, byrow=TRUE)
 colnames(dropout) <- c("yes","no")
 rownames(dropout) <- c("yes","no")
 names(dimnames(dropout)) <- c("program","high school graduate")
 dropout
+```
+
+```{r}
 
 xtot <- apply(dropout,1,sum)
 ytot <- apply(dropout,2,sum)
@@ -1000,7 +1184,34 @@ xtot <- as.matrix(xtot)
 ytot <- as.matrix(ytot)
 
 xtot%*%t(ytot)/sum(xtot)
+```
 
+
+```{r}
 chisq.test(dropout,correct =FALSE)
+```
+
+p-value -> 0 
+
+rifiuto ipotesi che la distrib. delle freq. delle due opzioni sia "la stessa"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
