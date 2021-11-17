@@ -133,31 +133,45 @@ attributes(roller.lm)
 plot(depression ~ weight, data = roller, 
      xlim=c(0,1.04*max(weight)),ylim=c(0,1.04*max(depression)),
      xlab = 'Weight of roller', ylab = 'Depression', pch = 16)
-roller.lm <- lm(depression ~ weight,data=roller)
+
+# creo un modello di reg lineare e disegno la retta
+roller.lm <- lm(depression ~ weight, data=roller)
 abline(roller.lm,col='red',lwd=2)
 
 # aggiungo punti dei valori stimati
 points(roller$weight,fitted.values(roller.lm), pch = 16, 
        col="red", lwd=2) 
 
-# aggiungo gli scarti
-segments(roller$weight,roller$depression,roller$weight,
-         fitted.values(roller.lm), col="blue", lwd=2)
+# aggiungo gli scarti (diff. tra valore osservato e valore previsto secondo il modello)
+segments(roller$weight, roller$depression, # start x,y (the actual value)
+         roller$weight, fitted.values(roller.lm), # end x,y (the predicted value)
+         
+         col="blue", lwd=2)
 ```
 
 
 ```{r}
 attributes(summary(roller.lm))
+
+# summary <- funzione molto generale, aiuta a ottenere una sintesi per diversi oggetti
 summary(roller.lm)
 ```
 
+In ordine, osservo:
+* min, max, quantili dei residui
+* stima standard error, con statistica test e p-value per ipotesi alpha=0 e beta=0
+* stima di sigma (sigma cappello), si indicano anche i gradi di libertà
+* statistica test F, p-value coincide con test su beta. Serve a mettere in confronto il modello nullo (quello con solo alpha), con il modello generale (quello con anche beta)
 
+
+
+Selezino elemento [2,2] della matrice (std.error di beta)
 ```{r}
 SEb <- summary(roller.lm)$coefficients[2, 2]
-SEb
+SEb # beta
 ```
 
-
+Intervallo di confidenza per beta a 95%. Sommo beta ai due quantili [...] moltiplicati per lo standard error
 ```{r}
 coef(roller.lm)[2] + qt(c(0.025,.975), 8)*SEb
 ```
@@ -167,39 +181,75 @@ coef(roller.lm)[2] + qt(c(0.025,.975), 8)*SEb
 
 ```{r}
 roller.lm$fitted.values
-roller.pred <- predict(roller.lm, se.fit=TRUE)
-roller.pred$fit
-roller.pred$se.fit
 
+
+roller.pred <- 
+  predict(roller.lm, # se gli passo l'lm in questo modo, userà come dataset "roller"
+          se.fit=TRUE # calcolo anche gli standard error
+          )
+
+ 
+# roller.pred$fit # valori previsti (mu cappello)
+# roller.pred$se.fit # standard error dei valori 
+
+roller.pred
 
 ```
 
+Nota: avendo applicato predict senza indicare new_data, ho usato i weight del dataset, dunque 
+mi aspetto una corrispondeza tra i fitted value del modello e i valori predetti (ho applicato il modello agli stessi dati da cui è stato creato)
+
+
+### Standard error di previsione
+
+Calcolo l'SE di previsione sommando la varianza di mu cappello e la (stima della) varianza dell'errore.
 
 ```{r}
 se.pred <- sqrt(roller.pred$se.fit^2+roller.pred$residual.scale^2)
 se.pred
 ```
 
+Osservo che lo standard error di previsione è diverso dallo standard error di stima, in quanto si introduce un errore epsilon. Ovviamente l'SE di previsione è molto più alto.
+
+
 ```{r}
-# Step 1
+# ----------------------------------------
+# Step 1: scatterplot + retta di regressione
 plot(depression ~ weight, data = roller, 
      xlim=c(0,1.04*max(weight)),ylim=c(0,1.04*max(depression)),
 xlab = 'Weight of roller', ylab = 'Depression', pch = 16)
 roller.lm <- lm(depression ~ weight,data=roller)
 abline(roller.lm,col='red',lwd=2)
 
-# Step 2
-xy <- data.frame(weight = pretty(seq(1,13,1), 20))
+
+# ----------------------------------------
+# Step 2: costruisco l'argomento "new data" (voglio una seq di valori 
+# x da 1 a 13 spaziati di un int. [...] voglio applicare poi il modello su questi valori)
+xy <- data.frame(weight = 
+                   pretty(seq(1,13,1), 20) # metti 20 val equispaziati in un certo intervallo
+                 )
 
 
+# ----------------------------------------
 # Step 3: intervalli di stima
-yhat <- predict(roller.lm, newdata = xy, interval="confidence")
+
+# effettuo la prevsione su newdata
+yhat <- predict(roller.lm, newdata = xy, 
+                interval="confidence" # specifico che voglio gli int. di confidenza
+                )
+
+# estraggo gli intervalli di confidenza (df di due colonne con lower e upper bound)
 ci <- data.frame(lower=yhat[, "lwr"], upper=yhat[, "upr"])
+
+# disegno gli int. di confidenza (le bande) con come linee tratteggiate
 lines(xy$weight, ci$lower, lty = 2, lwd=2, col="red")
 lines(xy$weight, ci$upper, lty = 2, lwd=2, col="red")
 
-
+# ----------------------------------------
 # Step 4: intervalli di previsione
+
+# ripeto la stessa cosa, solo che sta volta gli dico che voglio 
+# gli intervali di PREVISIONE e non di stima
 yhatob <- predict(roller.lm, newdata = xy, interval="prediction")
 ciob <- data.frame(lower=yhatob[, "lwr"], upper=yhatob[, "upr"])
 lines(xy$weight, ciob$lower, lty = 2, lwd=2)
@@ -207,29 +257,114 @@ lines(xy$weight, ciob$upper, lty = 2, lwd=2)
 
 ```
 
-Osservo che gli intervalli di previsione sono più ampi 
-
+Osservo che gli intervalli di previsione (bande nero tratteggiato) sono più ampi di quelli di stima (bande rosso tratteggiato).
 
 ### diagnostic plots and aov table
 
+```{r}
 par(mfrow=c(1,2))
 plot(roller.lm, which = 1, lwd=2, pch = 16, cex.caption=0.8)
 plot(roller.lm, which = 2, xlab="Theoretical quantiles",
      lwd=2, pch = 16, cex.caption=0.8)
 par(mfrow=c(1,1))
+```
 
+
+```{r}
 par(mfrow=c(1,2))
 plot(roller.lm, which = 3, lwd=2, pch = 16, cex.caption=0.8)
 plot(roller.lm, which = 4, lwd=2, pch = 16, cex.caption=0.8)
 par(mfrow=c(1,1))
+```
 
+
+```{r}
 anova(roller.lm)
+```
+
+# Cosa posso fare se la variabile non è numerica ma categoriale?
+
+## Teoria
+
+### I modelli ANOVA (modelli di analisi della varianza)
+
+Una delle metodologie per variabile risposta numerica (y) e regressore (x) categoriale.
+
+y <- variabile categoriale, labels, etichette, livelli.
+=> raggruppo oss. per fattore
+
+mod. di a. della varianza:
+* a 1 via
+* a 2 vie
+* a più vie...
+
+NOTA: simile a confronto tra medie di due campioni indipendenti. Qui però abbiamo più di due gruppi
+
+* potrei fare i confronti a coppie
+* modo più generale <- ANOVA
+
+Considerare il fattore della var. esplicativa (trattamento) 
+
+$y_{ij} = \mu + \tau_i + \epsilon_{ij} $
+
+mu <- lv. medio generale
+TAUi <- effetto del trattamento i
+epsilon ij <- errore (si suppone essere indipendente)
+
+IDEA: le y sono gaussiane, indipendenti, stessa varianza ma possono essere differenziate dalla media (e la media dipende da essere in un gruppo piuttosto che in un altro)ù
+
+### Ipotesi sperimentale
+
+H0: tutti i tau sono nulli
+H1: almeno un tau è diverso da 0
+
+se H0 vero, allora i dati hanno andamento gaussiano unico
+
+Poi mi chiederò, quali gruppi hanno comp. diverso
+
+Verifica <- test di F, si basa su...
+* errori hanno var comune sigma^2
+* per stimarla, potrei - gruppo per gruppo - calcolare la media degli scarti
+* divido per gradi di libertà $a*n-a$ (a<-n livelli, n <- n elementi per gruppo)
+<- "somma dei quadrati tra residui"
+
+y_i barrato <- media del gruppo i-esimo
+y barrato <- media totale 
+
+* altro stimatore per sigma quadro <- somma quadrati media gruppo e media totale (*n/(a-1))
+<- "somma dei quadrati tra gruppi"
+
+Cosa so di questi stimatori? 
+* il 1 stima bene sempre
+* il 2 stima bene sigma quadro solo se ipotesi nulla è vera
+
+=> se i due val sono simili (rapp -> 1), H0 vera
+
+=> posso fare classico test F (tipico per analisi varianza) su confronto (gradi di libertà <- $F(a-1, an-a)$)
+
+(scelta su p value)
+
+NOTA: test molto poco robusto, devono essere vere le ipotesi e i dati devono essere prive di outlyer
+
+### Post-hoc analysis
+
+analisi dopo ver di ipotesi
+
+* fisso "distanza tra le medie" per considerarle distinte() 
+* LSD e HSD 
 
 
 ## Example: paper resistance
 
+x <- resistenza
+y <- percentuale di fibra (la tratto come categoriale)
+
+4 livelli
+6 oss. per livello (caso bilanciato)
+
 ### ANOVA model
 
+```{r}
 library(lattice)
 paper <- data.frame(resistance =
 c(7, 8, 15,  11, 9, 10,# 5%
@@ -240,18 +375,37 @@ trt = rep(c("5%", "10%", "15%", "20%"),
 c(6, 6, 6, 6)))
 paper$trt <- relevel(paper$trt, ref="5%")
 paper
+```
 
+Plot dei valori per gruppo
+```{r}
 stripplot(resistance~trt, aspect=0.6, data=paper, xlab="concentration", 
           ylab="resistance")
+```
 
+
+```{r}
+# questo oggetto è sia modello che [...]
 paper.aov <- aov(resistance~trt,data=paper) 
-anova(paper.aov) # the same result is given by summary(paper.aov)
 
+
+anova(paper.aov) # the same result is given by summary(paper.aov)
+```
+
+p-value basso <- ipotesi nulla scartata
+
+(NOTA: in questo caso la categoria poteva essere anche trattata come variabile numerica)
+
+```{r}
 concentration <- c(5, 5, 5, 5, 5, 5, 10, 10, 10, 10, 10, 10, 15, 15, 15, 15, 15, 
                    15, 20, 20, 20, 20, 20, 20) # treatment specified as numeric vector
 plot(paper$resistance ~ concentration,xlab = 'Concentration', ylab = 'Resistance', 
      xlim=c(3,22), ylim=c(4,27), pch = 16)
+```
 
+
+Essendo ... anche un oggetto di tipo lm, posso applicare summary e vedere tipico summary
+```{r}
 trt1 <- summary.lm(paper.aov)$coefficients[1,1] # mean first group
 trt1
 trt2 <- trt1 + summary.lm(paper.aov)$coefficients[2,1] # mean second group
@@ -261,8 +415,23 @@ trt3
 trt4 <- trt1 + summary.lm(paper.aov)$coefficients[4,1] # mean fourth group
 trt4
 
+summary.lm(paper.aov)
+```
+
+* estimate Std. <- come varia la media da intercetta
+* 
+
+```{r}
+concentration <- c(5, 5, 5, 5, 5, 5, 10, 10, 10, 10, 10, 10, 15, 15, 15, 15, 15, 
+                   15, 20, 20, 20, 20, 20, 20) # treatment specified as numeric vector
+plot(paper$resistance ~ concentration,xlab = 'Concentration', ylab = 'Resistance', 
+     xlim=c(3,22), ylim=c(4,27), pch = 16)
+
+
 points(c(5,10,15,20), c(trt1,trt2,trt3,trt4), col='red',lwd=2)
 lines(c(5,10,15,20), c(trt1,trt2,trt3,trt4), col='red',lwd=2)
+```
+
 
 # # linear model with a factor predictor #
 # 
@@ -284,6 +453,7 @@ lines(c(5,10,15,20), c(trt1,trt2,trt3,trt4), col='red',lwd=2)
 
 # linear model #
 
+```{r}
 paper.lm2 <- lm(paper$resistance ~ concentration)
 summary(paper.lm2)
 
@@ -292,44 +462,249 @@ plot(paper$resistance ~ concentration,xlab = 'Concentration', ylab = 'Resistance
 abline(paper.lm2, col='blue',lwd=2)
 points(c(5,10,15,20), c(trt1,trt2,trt3,trt4), col='red',lwd=2)
 lines(c(5,10,15,20), c(trt1,trt2,trt3,trt4), col='red',lwd=2)
+```
+
+-------------------------------------------------------------------------
+# Diagnostiche sui residui
+
+## Teoria 
+
+Mod. lineare <- basato su assunzioni
+
+### MEtodi grafici
+Verifica assunzioni <- esistono diversi "metodi grafici"
+
+* valutaz. residui in base a valori stimati (fitted residuals)
+
+* confronto con residui standard
+
+* con più regressori, possiamo mettere in relazione i diversi residui stimaiti 
+
+* qqplot per normalità dei residui
 
 
-### Example: cars ###
+NOTA:
+per ogni insimeme di dati, la media dei residui è SEMPRE nulla
 
-# model fitting #
+media residui stimati coincide, è sempre 0
 
+### Altri strumenti
+
+Oltre a diagnostiche, possiamo usare strum. per valutare bontà modello
+
+Uno strumento <- analisi della variabilità 
+
+ANOVA (non confondere ...)
+
+obiettivo: studiare variabile risposta y e "spiegare perché cambiano" (quali sono le determinanti?). Quanto una variabilità è spiegata dal modello e quanto invece no?
+
+Come si fa:
+* si parte da relazione <- lega somma dei quadrati e due parti sommate. Scompongo la var totale SST in:
+** SSM <- somma dei quadrati spiegati dal modello 
+** SSE <- parte residua, somma dei residui ^2
+ (per ottenere la varianza potrei dividere per dim campione - gradi di libertà)
+ 
+ 
+* coeff $R^2=SSM/SST=1-SSE/SST$ <- qual è la percentuale di variabilità spiegata dal modello
+
+* versione aggiustata di $adj R^2=1-(SSE/gradi libertà)/(SST/gradi libertà)$ <- tiene conto dei gradi di libertà.
+** SST <- 1 grado di libertà (ho usato stimatore ...)
+** SSE <- 2 gradi di libertà 
+
+### Posso fare di meglio? 
+
+Se ottengo risultati scadenti, potrei provare ed effettuare regressione su trasformate delle variabile obiettivo. In questo modo, cerco pattern != lineari, usando sempre il modello lineare e tutte le sue tecniche.
+
+### Note su R^2
+
+* $R^2$ <- indicatore di "bontà" del modello. Non è un indicatore adatto per valutare la bontà delle previsioni.
+
+* ricorda che $R^2$ è "relativo ad un certo dataset" (confrontare R^2 può essere utile se voglio confrontare diversi modelli sugli stessi dati)
+
+* R^2 del 90-95% <- utopia. Di solito è molto più basso
+
+
+# I valori anomali (outlyer)
+
+## Teoria
+
+Dati che si discostano dalla maggioranza delle osservazioni.
+
+Perché si studiano?
+
+* val anomalo <- può portare info interessanti (e.g., "il sistema che osservo sta andando fuori scala")
+
+* se dato è outlyer, averlo o non averlo può produrre res diversi (di solito: "fate analisi con outlyer, poi rifare senza per vedere differenze")
+
+* modelli +- robusti per outlyer
+
+* outlyer può essere anche frutto di errore di rilevazione
+
+NOTA: discorso fumoso, (specie) con multi-var diventa difficile. 
+
+### Leva e influenza
+Dobbiamo distinguere due concetti:
+
+* "effetto leva" <- la presenza di un punto porta una "variazione" del modello. Di solito, riguarda punti agli estremi
+
+
+* "effetto influenza" <- aspetto un po' più generale. Punto influente = considerarlo o non considerarlo comporta cambiamento notevole nelle stime
+
+
+Outlyer <- punti di influenza, che possono presentare effetto leva e/o residui elevati
+
+(nota: possono esistere punti influenti anche con basso effetto leva)
+
+(nota: un punto d'influenza non è detto che abbia residuo elevato. "ha influenzato così tanto la retta di regressione da attirarla a se")
+
+influenza è il concetto più generico
+
+### Strumenti per l'individuazione degli outlyer
+
+Ci sono diversi modi per "flaggare" pot. outlyer
+
+* distanza di Cook (influenza singolo punto su un modello). Punto con dist => 1 potenziale outlyer (oppure, per essere più sofisticati, comparo con altre d. di Cook)
+
+# Valutaz. del modello dal pt. di vista predittivo
+
+Vedremo indicatori
+
+Se io considero dati per stimale modello, voglio usare modello per fare previsioni
+
+Se cerco di "validare" la bontà predittiva di un modello CON GLI STESSI DATI potrei produrre valutazioni troppo ottimistiche. 
+
+
+=> per valutare la bontà dal punto di vista della previsione è bene costituire un training set e un test set. 
+
+Non sempre ho abbastanza dati => potrei pensare a cross-validation (dividere in k fold, usare - a turno - un fold per valutare un modello creato con i restanti 1-k)
+
+
+# La scelta della scala e le trasformate
+
+Scegliendo diverse scale per y (cioè lavorando su trasformate) posso modellare anche roba non lineare.
+
+
+
+## Box-Cox Trasformate
+
+famiglia di trasformate, parametro lambda (regola l'uso di una o dell'altra trasformata)
+
+NOTA: in questo modo abbiamo introdotto anche un altro parametro da stimare (dati -> stima di lambda)
+
+
+# Forma matriciale del modello di reg. lineare
+
+$y = X \beta + \epsilon$
+
+y, epsilon <- vettori colonna
+
+beta <- due coeff. alpha e beta
+
+X <- matrice n*2 (colonna di 1...1, colonna con x1...x2)
+
+
+
+
+------------------------------------------------------------------------------------
+# esempi vari 
+
+
+## Example: cars
+
+### model fitting
+
+PRima cosa: stima mod lineare
+
+```{r}
 cars.lm <- lm(dist ~ speed, data = cars)
 summary(cars.lm)
+```
 
+OSS:
+
+* p-value suspeed molto basso => molto ragionevole pensare a beta != 0
+
+Coincide con test F (particolarità del mod. di reg. lineare semplice, perchè c'è solo un regressore)
+
+test F: "il modello ha solo l'intercetta"/"il modello ha un beta diverso da 0"
+
+* vedo che ho R^2 e R^2 aggiustato
+
+
+
+Ora disegno lo scatter-plot + disegno retta regressione:
+```{r}
 plot(dist ~ speed, data = cars, xlim=c(0,1.04*max(speed))
      ,ylim=c(0,1.04*max(dist)),xlab = 'Speed', ylab = 'Distance', pch = 16)
 abline(cars.lm,col='red',lwd=2)
+```
 
-# diagnostic plots #
 
-plot(cars.lm, which = 1, lwd=2, pch = 16, cex.caption=0.6)
+### diagnostic plots
+
+```{r}
+
+par(mfrow=c(2,2))
+plot(cars.lm, which = 1, # quale grafico voglio considerare (li voglio uno alla volta)
+     lwd=2, pch = 16, cex.caption=0.6)
+
 plot(cars.lm, which = 3, lwd=2, pch = 16, cex.caption=0.6)
 plot(cars.lm, which = 2, xlab="Theoretical quantiles",
      lwd=2, pch = 16, cex.caption=0.6)
 plot(cars.lm, which = 4,lwd=2, pch = 16, cex.caption=0.6)
 
+par(mfrow=c(2,2))
+```
+
+
+
+
+output con anche lowess (retta di regressione locale)
+```{r}
 plot(dist ~ speed, data = cars, xlim=c(0,1.04*max(speed)),
      ylim=c(0,1.04*max(dist)),
 xlab = 'Speed', ylab = 'Distance', pch = 16)
 abline(cars.lm,col='red',lwd=2)
-with(cars, lines(lowess(dist ~ speed, f=.7), lwd=2, col='blue'))
 
-# model with sqrt(dist) #
+# aggiungo regressione locale
+with(cars, lines(lowess(dist ~ speed, 
+                        f=.7 # determino lv. di smoothness (devo trovare buon equilibrio)
+                        ), 
+                 lwd=2, col='blue'))
+```
 
+
+### model with sqrt(dist)
+
+Proviamo a lavorare su una trasf. di y (da prec ho osservato un andamento quadratico => radice di y)
+```{r}
 sqrtcars.lm <- lm(sqrt(dist) ~ speed, data = cars)
 summary(cars.lm)
 summary(sqrtcars.lm)
+```
 
+OSs. che R^2 cresce a 70% rispetto a modello lineare semplice
+
+
+
+Con anova analizzo i due modelli (con y e sqrt(y))
+
+```{r}
 anova(cars.lm)
 anova(sqrtcars.lm)
+```
 
-# diagnostic plots #
+Cosa fa anova?
 
+* mi analizza la varianza
+* somma quadrati <- in col Sum Sq (in ordine su colonna: SST, SSE) 
+[...]
+* test F (per ogni beta) e P value <- modo alternativo per comparare modello nullo o modello con un beta
+
+
+### diagnostic plots
+
+```{r}
 par(mfrow=c(1,2))
 plot(sqrtcars.lm, which=1,lwd=2, pch = 16, cex.caption=0.6)
 plot(sqrtcars.lm, which=2, xlab="Theoretical quantiles",
@@ -338,23 +713,46 @@ plot(sqrtcars.lm, which=2, xlab="Theoretical quantiles",
 plot(sqrtcars.lm, which=3,lwd=2, pch = 16, cex.caption=0.6)
 plot(sqrtcars.lm, which=4,lwd=2, pch = 16, cex.caption=0.6)
 par(mfrow=c(1,1))
+```
 
+
+```{r}
 plot(sqrt(dist) ~ speed, data = cars, xlim=c(3,26),
 xlab = 'Speed', ylab = 'sqrt(Distance)', pch = 16)
 abline(sqrtcars.lm,col='red',lwd=2)
 with(cars, lines(lowess(sqrt(dist) ~ speed, f=.7), 
                  lwd=2, col='blue'))
+```
 
-# Box-Cox transformation #
 
+### Box-Cox transformation
+
+in MASS ho funz per ottenere un valore plausibile per lambda 
+
+```{r}
 library(MASS)
 lambdares <- boxcox(cars.lm, lambda = seq(0, 1, 0.05))
+```
 
-lambdares <- boxcox(cars.lm, lambda = seq(0, 1, 0.05), plotit=F, interp=F)
+Oss. che val ottimale è il massimo di questa, sulla quale prendo int. di confidenza del 95%
+
+```{r}
+lambdares <- boxcox(cars.lm, lambda = seq(0, 1, 0.05), 
+                    
+                    plotit=F, # no output grafico
+                    
+                    interp=F) # gli dico di "non infittire i valori", 
+                              # altrimenti "infittisce" a 100 valori
+                              # in queso modo ho i valori che ho fissato io
+
+
 lambdares
+```
 
-# confidence and prediction intervals #
 
+### confidence and prediction intervals #
+
+```{r}
 # Step 1
 plot(sqrt(dist) ~ speed, data = cars, xlim=c(2,27),
      ylim=c(0,1.04*max(sqrt(dist))), xlab = 'Speed', 
@@ -379,6 +777,13 @@ yhatob <- predict(sqrtcars.lm, newdata = xy, interval="prediction")
 yhatob <- yhatob^2 # converted pi
 ciob <- data.frame(lower=yhatob[, "lwr"], upper=yhatob[, "upr"])
 
+```
+
+
+
+Per passare alla scala originale devo moltiplicare al quadrato le radici di y e di y stimate
+
+```{r}
 # Step 3
 plot(dist ~ speed, data = cars, xlim=c(2,27),ylim=c(0,1.04*max(dist)), 
       xlab = 'Speed', ylab = 'Distance', pch = 16, 
@@ -390,12 +795,21 @@ lines(xy$speed, ci$lower, lty = 2, lwd=2, col="red") # converted ci
 lines(xy$speed, ci$upper, lty = 2, lwd=2, col="red")
 lines(xy$speed, ciob$lower, lty = 2, lwd=2) # converted pi
 lines(xy$speed, ciob$upper, lty = 2, lwd=2)
+```
 
 
-### Example: books ###
+NOTA: 
 
-# model fitting #
+fare sta roba della scala non è proprio il massimo
 
+nel ritorno nella scala originaria, la copertura non è così precisa
+
+
+## Example: books ###
+
+### model fitting
+
+```{r}
 library(DAAG)
 softbacks.lm <- lm(weight ~ volume, data=softbacks)
 plot(softbacks$volume[-c(4,6)], softbacks$weight[-c(4,6)], xlab = 'Volume', 
@@ -403,16 +817,34 @@ plot(softbacks$volume[-c(4,6)], softbacks$weight[-c(4,6)], xlab = 'Volume',
 points(softbacks$volume[4], softbacks$weight[4], pch=16, lwd=2, col='red')
 points(softbacks$volume[6], softbacks$weight[6], pch=16, lwd=2, col='blue')
 abline(softbacks.lm,col='red',lwd=2)
+```
 
+
+```{r}
 summary(softbacks.lm)
+```
 
-# diagnostic plots #
 
+### diagnostic plots
+
+```{r}
 par(mfrow=c(1,2))
 plot(softbacks.lm, which = 1, lwd=2, pch = 16, cex.caption=0.7)
 plot(softbacks.lm, which = 4, lwd=2, pch = 16, cex.caption=0.7)
 par(mfrow=c(1,1))
 
+```
+
+
+* Oss. distanze di cook elevate per 4 e 6
+* 4 è leva perché si trova molto in là
+* 
+
+
+
+Facciamo un po' di analisi di come varia la retta togliendo ciascun punto 
+
+```{r}
 softbacks.lm <- lm(weight ~ volume, data=softbacks)
 plot(softbacks$volume[-c(4,6)], softbacks$weight[-c(4,6)], 
      xlab = 'Volume', ylab = 'Weight', xlim=c(370,1520), 
@@ -423,11 +855,41 @@ points(softbacks$volume[6], softbacks$weight[6], pch=16,
        lwd=2, col='blue')
 abline(softbacks.lm,col='black',lwd=2)
 
+
+
 for(i in 1:8)
 {
+  # print modello senza il punto i
+  # (colore nero, oppure rosso o blu per i=4 e i=6)
   cols <- 'black'
   cols <- ifelse(i==4, 'red', cols)
   cols <- ifelse(i==6, 'blue', cols)
   mod <- lm(weight ~ volume, data=softbacks[-i,])
   abline(mod, lty=2, lwd=2, col=cols)
 }
+```
+
+
+Togliendo rossi e blu (4 e 6) vedo che retta varia molto 
+=> 4 e 6 sono punti influenti 
+
+* rosso <- produce maggiore influenza
+* blu <- influenza leggermente minore 
+
+(nonostante blu sia leva)
+
+
+# Commento finale
+
+valutazioni solo se il problema ci permette di lavorare in modo "artigianale"
+
+eg, Machine Learning <- non si riesce a fare tutto questo trattamento
+
+
+
+
+
+
+
+
+

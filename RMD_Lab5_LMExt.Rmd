@@ -1,0 +1,943 @@
+---
+title: "Lab 5 - Towards multiple linear regression and logistic regression"
+author: "Emanuele Lena"
+date: "8/11/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# La regressione lineare multipla
+
+Obiettivo: studio del modello di regressione lineare multipla
+
+* generaliz. modello semplice
+* alcune questioni più generali 
+
+Differenza con caso semplice: ammettiamo più previsori (var. esplicative, covariata)
+
+Perché è importante? Non modella troppe situaz. reali ma si imparano alcune cose di carat.generale
+
+$y_i = \beta_0 + \beta_1*x_{i1} + ... + \beta_p*x_{ip} + \epsilon_i $
+
+...
+
+possiamo esprimere tutto in termini matriciali
+
+$Y=X\beta+\epsilon$
+
+X = (
+1 x11 ... x1p
+.  .
+.  .
+.  .
+1 xn1 ... xnp
+)
+
+<- può includere tante cose:
+* semplici variabili numeriche
+* fattori (categoriali)
+* altri regressori
+* ...
+
+beta <- vett. colonna $(\beta_0,\beta_1, ... , \beta_p)^T $
+
+epsilon <- vett. colonna $(\epsilon_1, ... , \epsilon_n)^T $
+
+Y <- vett. colonna $(y_1, ... , y_n)^T $
+
+### La gestione dei fattori
+
+Solitamente si effettua inserendo, per ongi livello una "variabile dummy" binaria in $\{1,0\}$ per ogni livello. 
+
+e.g., 
+
+y descritto da 2 var numeriche $v,u$ più un fattore $g$ con 3 livelli:
+
+* in X, elimino la colonna 0
+* introduco 3 variabili dummy binarie, che si attivano quando un'oss. appartiene ad una certa categoria
+* per ongi nuova colonna, introdurrò una nuova $\beta_0$ legata alla categoria (?)
+
+Oss. su slide 9 <- [...]
+
+
+## La stima del modello
+
+...
+
+vettore beta <- stimato con metodo degli scarti quadrati
+
+$\beta cappello = (X^TX)^{-1}X^Ty$
+
+essendo t. lineare di vettore randomico, segue  $N_{p+1}(\beta, V(\beta))$
+
+con $V(B) = \sigma^2(X^TX)^{-1}$
+
+
+$y cappello = vett. colonna 1...n = \mu cappello = X*\beta cappello $
+
+giocando con matrici ottengo che $y cappello = ... = H*y$, con $H =X(X^TX)^{-1}X^T$
+
+proprietà di H:
+
+* traccia = p+1
+* H*H = identità (?)
+
+$(\beta_jcappello - \beta_j)/SE(\beta_jcappello)$ è una t di student con n-p-1 gradi di libertà
+=> posso in questo modo trovare intervalli di confidenza su beta_j
+
+## Test vari
+
+### Test T su beta
+
+interpretaz. risultati inferenziali su beta
+
+* singolo test t su singolo j <- valuta l'ipotesi che UNO dei beta sia nullo (tutti gli altri si considerano nel modello)
+* ricorda che i regressori NON è detto che siano indipendenti tra di loro => ogni volta che tolgo un termine di regressione devo stimare il modello, perché i vari regr. potrebbero avere "dipendenza"
+* p-value <- danno idea su rilevanza singolo regressore, ma vedremo che in certi casi non possiamo fare troppo affidamento su di esso [...]
+
+### Test F su beta
+
+test locale, 
+
+ipotesi nulla: modello nullo (tutti i beta = 0)
+ipotesi 1: almeno un beta != 0
+
+(NOTA: oss. che, al contrario del caso lineare semplice, non c'è corrisp. tra T e F)
+
+### I residui
+
+residui stimati <-$\epsilon cappello = y - y cappello = vett. colonna 1...n$
+
+[...]
+
+### Int. confidenza su beta 
+
+Int. di confidenza per i singoli beta <- [...]
+
+n-p-1 gradi libertà
+
+### Int. confidenza sulle medie
+
+[...]
+
+Oss. che mettendo p a 0 mi riconduco a caso semplice (è una generalizzazione)
+
+### Int. confidenza su previsore
+
+Ricorda: 
+
+* media yi = stimatore = valore previsto
+* la varianza però deve includere anche il termie d'errore 
+
+=> int. confidenza su intervallo più ampio 
+
+## Install the packages "DAAG", "MASS", "lattice", "compositions", "ISLR", "car" ##
+
+```{r}
+# install.packages("DAAG")
+# install.packages("MASS")
+# install.packages("lattice")
+# install.packages("compositions")
+# install.packages("ISLR")
+# install.packages("car")
+```
+
+
+# Multiple linear regression with continuous responses
+
+## Example: book weight
+
+Alcune info su libri
+
+* volume
+* area copert.
+* peso
+* tipo copertina (rigida e flessibile)
+
+```{r}
+library(DAAG)
+library(lattice)
+
+```
+
+
+
+### Analisi preliminare 
+
+Prima cosa interessante: fare una serie di scatterplot per mettere in relazione le varie var. numeriche
+
+```{r}
+pairs(allbacks[,1:3], # selez. volume, area e peso
+      lwd=2)
+```
+
+Per rappr. più sofisticata con funz. di lattice: 
+```{r}
+splom(~allbacks[,1:3], # vuole in input ogg. cls formula
+      lwd=2, 
+      groups = cover, # evidenzia anche il fattore "cover" con colore
+      auto.key = T, 
+      data = allbacks)
+
+```
+
+### Modello
+
+Cerco di spiegare il fatt. peso con il volume e l'area:
+
+```{r}
+allbacks.lm <- lm(weight  ~ volume + area, data=allbacks)
+summary(allbacks.lm)
+```
+
+Oss: comando + summary <- molto simili a caso semplice 
+
+per ogni beta ho: un valore stimato, lo standard error, il t-value  e il p-value
+
+* per beta 0 osservo p.value molto elevato => potrei voler rimuovere l'intercetta, ma non mi da fastidio (inoltre sarebbe scomodo perché dovrei re-interpr. tanti strumenti)
+
+* vol e area (beta 1 e 2) hanno p-vale alti
+
+
+Poi oss. 
+* SE dei residui
+* R^2 
+* statistica F per vedere che almeno uno dei due beta 1,2 risulti diverso da 0 (p-value basso <- almeno un beta è diverso da 0)
+
+osservo che test F NON corrisp. a test su beta (in questo caso)
+
+Potrebbe capitare di avere p-value basso per F e p-value alto per i singoli beta <- (tante situazioni particolari, vedremo dopo ...)
+
+
+### Anova 
+
+(in questa situaz. ) ci da un output di tab. di analisi della varianza
+
+```{r}
+anova(allbacks.lm)
+```
+
+Oss: 
+
+* il p-value dell'area corrisp. con prec MA quello del volume no
+
+Come interpretare questa tabella?
+
+Essa mette in campo ulteriori test F.,
+
+PRimo test F mette a confronto:
+
+* il modello nullo
+* il modello con un unico regressore (volume)
+
+perchè il p-value del volume non equivale con test T? perchè in test T il regressore dell'altra variabile (area) rimane. In questo caso, valuto in isolamento il volume
+
+E il secondo test F? INCREMENTALMENTE metto a confronto:
+
+* modello con solo volume
+* modello con area e volume
+
+IN QUESTO CASO, IL TEST CORRISPONDE CON IL T DI PRIMA, perché considero (come prima) entrambi le variabili.
+
+Cosa posso concludere: il volume influenza come risposta ma influisce anche essendo a sua volta un regressore per area
+
+(EFFETTO DI CO-LINEARITA') <- vedremo come valutare
+
+```{r}
+cor(allbacks$volume,allbacks$area)
+
+```
+
+(Difatti calcolando la corr. semplice osservo )
+
+```{r}
+library(car)
+car::vif(allbacks.lm)
+DAAG::vif(allbacks.lm)
+```
+### Diagnostiche
+
+Anche qui posso introdurre diagnostiche (come per reg. semplice)
+
+Come per lm semplice, uso plot diret. su modello, utilizzando which per selezionare cosa mostrare
+
+```{r}
+par(mfrow=c(2,2))
+
+# residui vs val. stimati 
+plot(allbacks.lm, which = 1, lwd=2, pch = 16, cex.caption=1)
+
+# QQ (quantili teorici e val. residui)
+plot(allbacks.lm, which = 2, xlab="Theoretical quantiles",lwd=2, pch = 16, cex.caption=1)
+
+# valori stimati e rad. residui (Residui standard. in val assoluto)
+plot(allbacks.lm, which = 3,lwd=2, pch = 16, cex.caption=1)
+
+# dist. di cook
+plot(allbacks.lm, which = 4,lwd=2, pch = 16, cex.caption=1)
+par(mfrow=c(1,1))
+```
+
+
+## Example: hill races
+
+23 corse (in collina) in 23 diverse località
+
+* dist percorsa
+* dislivello
+* record maschile e femminile
+
+
+Come prima, costruiamo due var. di scatterplot 
+
+```{r}
+library(DAAG)
+library(lattice)
+gr1 <- splom(~nihills[,c("dist","climb","time")],lwd=2)
+gr2 <- splom(~log(nihills[,c("dist","climb","time")]),
+             varnames=c("log dist", "log climb", "log time"),lwd=2)
+print(gr1, position=c(0, 0, 0.5, 1))
+print(gr2, position=c(0.5, 0, 1, 1),  newpage=FALSE)
+```
+
+Osservando la scala normale: vedo concentrazioni particolarmente "dense" con pochi valori molto lontani => provo a passare alla scala log
+
+<- le rel. appaiono più lineari
+
+=> applichiamo reg. lineare multipla ma su log dati: 
+
+spiego tempo con dist. e dislivello
+
+```{r}
+nihills.lm <- lm(log(time) ~ log(dist) + log(climb), data = nihills) # mod. in scala log
+summary(nihills.lm)
+```
+
+Sia test F che T sono signif. => ok
+
+
+```{r}
+par(mfrow=c(2,2))
+plot(nihills.lm, which = 1, lwd=2, pch = 16, cex.caption=1)
+plot(nihills.lm, which = 2, xlab="Theoretical quantiles",lwd=2, pch = 16, 
+     cex.caption=1)
+plot(nihills.lm, which = 3,lwd=2, pch = 16, cex.caption=1)
+plot(nihills.lm, which = 4,lwd=2, pch = 16, cex.caption=1)
+par(mfrow=c(1,1))
+```
+
+(diagnostiche <- pt. un po' particolari ma okay, son dovuti a bassa numerosità dei dati)
+
+### Interpr. dei log dati e valutazione di cambio modello
+
+Ora il problema è l'iterpretazione. 
+
+Cosa significa usare i log dati? 
+
+$log(tempo) = \beta_0 + \beta_1*log(dist) + \beta_1*log(dist)$
+
+=> ...
+
+$time = 0.0007 * dist^{0.68} * climb^{0.47}$
+
+Sembra che aumentando la distanza, la media aumenta....
+
+MA ricordo che sto tenendo fisso il dislivello! => 
+
+ci sta che a parità di dislivello, aumentando la distanza aumenta anche la velocità media (meno pendente => corro più veloce)
+
+QUESTO POTREBBE DARE DIFFICOLTA' DI INTERPRET. 
+
+=> potrei modificare il secondo regressore, ed esprimerlo come log(climb/dist)
+
+<- mantengo tutti i test di prima (...) ma rendo il tutto più facilmente
+
+Ora costruiamo:
+
+```{r}
+
+# applico log a tutti dati
+lognihills <- log(nihills)
+
+# incollo "log" al nome di ogni colonna (per chiarezza)
+names(lognihills) <- paste("log", names(nihills), sep="")
+str(lognihills)
+```
+
+
+```{r}
+# creo una nuova colonna, cioè la diff. tra climb e dist (in scala log)
+lognihills$logGrad <- with(nihills, log(climb/dist))
+
+# costruisco il nuovo modello 
+nihillsG.lm <- lm(logtime ~ logdist + logGrad, data=lognihills)
+summary(nihillsG.lm)
+```
+
+Oss. che st. sono le stesse
+
+
+```{r}
+with(lognihills, cor(cbind(logGrad, logclimb), logdist))
+
+```
+
+
+
+# Teoria 11/10
+
+## [...]
+
+## La stima della bontà di un modello
+
+### R^2
+
+[...]
+
+### La selezione di modelli (backward selection e forward selection)
+
+modello annidato <- modello composto da modelli (azzerando certi beta, ottengo i sotto-modelli)
+
+dati p regressori <- tantissime combinazioni.
+
+Test F (con ANOVA) su mod.annidato <- permette di individuare quali dei sotto-modelli sono più significativi 
+
+backward selection:
+* si prende un modello abbastanza complesso (p molto alto)
+* lo si verifica
+* si prova poi ad applicare vari sotto-modelli
+
+Alternativa (forward selection): parto da modello abbastanza semplice, aggiungo proggressivamente complessità. Test F <- ripetuti finché l'aggiunta di termini non da più controb, significativi 
+
+### Confronto di modelli non-annidati (AIC statistic, Mallow's Cp )
+
+No test F, altri criteri
+
+AIC statistic, Mallow's Cp <- [...]
+
+Anche qui posso applicare strategie backward e forward (tolgo e aggiungo regressori asseconda di cosa i criteri ci suggeristico)
+
+
+### Metodi computazionali 
+
+* metodi di tipo lasso <- selez. automatica dei reg. rilevanti (idea: stima modello = massimizzazione di f. obiettivo. In questo caso, si massimizza f.obiettivo ma con penalizzazione, che disincentiva stima dei coefficenti != 0 => molti beta risulteranno nulli, emergeranno solo quelli realmente rilevanti)
+
+* procedure di boosting <- come se avessimo tanti modelli di regressione con un unico modello. [...] importante: fermare alg. in momento opportuno da selez. solo reg. più rilevanti
+
+In generale,è sempre importante: selez. un modello che faccia fit MA che non cada nell'overfitting
+
+
+## (esempio continua)
+
+### Il grafico dei residui parziali 
+
+faccio rif. a dati su scala logaritmica
+
+Voglio ri-scrivere i regressori ri-centrandoli rispetto alla media
+
+```{r}
+
+# ri-scrittura del modello con i regressori ricentrando risp. alla media
+nihillsG.lm_demean <- lm(logtime ~ 
+        I(logdist-mean(logdist)) + 
+        I(logGrad-mean(logGrad)), 
+        # (NOTA: I(...) <- modo di fare questa op. nella def. del modello
+        # avrei anche potuto solo aggungere due colonne)
+        
+        data=lognihills)
+
+
+summary(nihillsG.lm_demean)
+```
+
+Termplot <- Fai il plot dei residui parziali, in base ad un singolo termine
+
+```{r}
+nihills.lm <- lm(logtime ~ logdist + logclimb, data=lognihills)
+par(mfrow=c(1,2))
+
+# termplot per primo regressore
+termplot(nihills.lm, # ogg: <- modello di partenza (la ri-centratura la fa R)
+         terms=1, # su quale dei regressori voglio fare il plot?
+         partial.resid=TRUE, # voglio rappr. con punti i residui
+         se=T, # disenga anche la banda degli intervalli di stima
+         
+         lwd.term=2,lwd.se=2,pch=20,
+         smooth=panel.smooth, col.smth='blue', col.res="gray30")
+
+
+# ripeto per secondo regressore (sta volta tralascio le bande di conf.)
+termplot(nihills.lm, terms=2,partial.resid=TRUE, lwd.term=2,lwd.se=2,pch=20,
+         smooth=panel.smooth, col.smth='blue', col.res="gray30")
+par(mfrow=c(1,1))
+```
+
+Legenda primo grafico: 
+* rette tratt gialle <- bande di confidenza
+* retta rosssa <- retta di regressione del modello
+* retta tratteggiata blu <- pattern ottenuto con lowess
+* puntini grigi <- residui
+
+Come interpretare:
+* ciò che il regressore non ha spiegato logclimb, viene spiegatda logdist (e vice versa)
+* nel secondo, ci sono variazioni più forti
+* nel primo, tanti puntini sono fuori dalle bande di confidenza
+
+
+### Diagnostiche del modello stimato
+
+(classici plot delle diagnostiche del modello, selez con which)
+
+```{r}
+par(mfrow=c(1,3))
+
+# dist di cook 
+plot(nihills.lm, which=4, lwd=2, pch = 16, cex.caption=0.8)
+
+# residui ed effetto leva
+plot(nihills.lm, which=5, lwd=2, pch = 16, cex.caption=0.8)
+
+# residui ed effetto leva (2)
+plot(nihills.lm, which=6, lwd=2, pch = 16, cex.caption=0.8)
+par(mfrow=c(1,1))
+```
+
+Oss: 
+
+guardando grafici, si oss. tre gare che possono essere potenziali anomalie. Sono outlyer?
+
+Voglio approfondire. Uso questi due strumenti:
+
+* dfbetas <- genera sequenza dove ho valori riferiti a ogni beta (per ogni osservazione)
+* influence.measures <- generalizz di dfbetas
+
+
+### Misura degli scarti per gli stimatori di beta (dfbetas)
+
+
+dfbetas <- genera sequenza dove ho valori riferiti a ogni beta (per ogni osservazione)
+
+cosa sono questi valori? Differenza tra stima di beta con tutti i dati e stima di beta senza l'osservazione indicata => posso capire quanto lasciare/togliere un dato influenza le stime
+
+(NOTA: la diff. viene poi standardizzata per uno std. error)
+
+```{r}
+dfbetas(nihills.lm)
+```
+
+Come valutiamo?
+
+gauss. stadard <- val estremi: oltre 2 e sotto -2
+
+=> guida pratica: cercare valori vicini a 2 per cercare punti particolarmente rilevanti
+
+Qui oss. che anche l'oss. che prima abbiamo individuato come "peggiore", è ampiamente sotto 2.
+
+### influence.measures e fattori di leverage
+
+influence.measures <- prime tre colonne come dfbetas, poi aggiunge (partendo dal fondo):
+
+* inf <- indica punti potenzialmente influenti (con *)
+* hat <- fattori di leverage 
+* dist. di cook
+* cov.r <- confronto variabilità stime con osservazione e senza osservazione
+* dffit <- differenza tra i vari y cappello stimati con e senza oss.
+* (ultimi tre <- stessi valori di beta)
+
+```{r}
+influence.measures(nihills.lm)
+```
+
+(conclusioni<- simili a quelle di prima, non ci sono valori strani)
+
+### Covarianti quadratiche (e modelli polinomiale)
+
+Introduc. un termine quadratico al modello 
+
+```{r}
+
+# modello originale
+nihills.lm <- lm(logtime ~ logdist + logclimb, data = lognihills)
+
+# modello con t. quadratico
+nihills2.lm <- lm(logtime ~ logdist + logclimb + I(logdist^2), data = lognihills)
+
+
+summary(nihills.lm)
+summary(nihills2.lm)
+```
+
+Oss. 
+* in mod. quadratico, leggero miglioramento per R^2
+* test T abbastanza simile per pendenza
+* test T per reg. quadratico <- molto alto (8%) per ^2, lo stesso alto per logdist
+
+=> mi verrebbe da dire tolgo log dist e log dist ^ 2. NOTA: questo però può essere dovuto al fatto che c'è una forte correlaz. per i due regressori 
+
+=> servono altri confronti: 
+
+* R^2 <- ok
+* AIC e BIC (più bassi sono, meglio è)
+
+```{r}
+AIC(nihills.lm,nihills2.lm)
+BIC(nihills.lm,nihills2.lm)
+```
+
+In entrambi i casi, il t. quadratico risulta vantaggioso.
+
+
+Esercizio: prova a rimuovere logdist (non quadrato) dal modello.
+
+
+## Example: cars
+
+```{r}
+plot(dist ~ speed, data = cars, xlim=c(3,1.04*max(speed)),
+     ylim=c(0,1.04*max(dist)), xlab = 'Speed', ylab = 'Distance', pch = 16)
+```
+
+
+```{r}
+cars2.lm <- lm(dist ~ speed + I(speed^2),data=cars)
+
+```
+
+
+
+```{r}
+dat <- data.frame(speed = seq(3,25,length=100))
+fv <- predict(cars2.lm,newdata=dat,se=TRUE)
+fitvalues <- cars2.lm$coef[1] + cars2.lm$coef[2]*seq(3,25,length=100) + 
+       cars2.lm$coef[3]*seq(3,25,length=100)^2
+fv$fit
+fitvalues
+```
+
+
+```{r}
+plot(dist ~ speed, data = cars, xlim=c(3,1.04*max(speed)),
+     ylim=c(0,1.04*max(dist)), xlab = 'Speed', ylab = 'Distance', pch = 16)
+lines(dat$speed,fv$fit,lwd=2, col='red')
+with(cars, lines(lowess(dist ~ speed, f=.7), lwd=2, col='blue'))
+```
+
+
+```{r}
+summary(cars2.lm)
+
+```
+
+```{r}
+library(DAAG)
+vif(cars2.lm)
+```
+
+
+```{r}
+par(mfrow=c(2,2))
+cars2.lm <- lm(dist ~ speed + I(speed^2),data=cars)
+plot(cars2.lm, which = 1, lwd=2, pch = 16, cex.caption=0.8)
+plot(cars2.lm, which = 2, xlab="Theoretical quantiles",lwd=2, pch = 16, 
+     cex.caption=0.8)
+plot(cars2.lm, which = 3,lwd=2, pch = 16, cex.caption=0.8)
+plot(cars2.lm, which = 4,lwd=2, pch = 16, cex.caption=0.8)
+par(mfrow=c(1,1))
+```
+
+
+```{r}
+cars2w.lm <- lm(dist ~ speed + I(speed^2),data=cars,weights=1/speed)
+summary(cars2w.lm)
+```
+
+
+```{r}
+cars0.lm <- lm(dist ~ speed, data = cars)
+cars1w.lm <- lm(dist ~ I(speed^2) -1, data=cars, weights=1/speed)
+cars2w.lm <- lm(dist ~ speed + I(speed^2), data=cars, weights=1/speed)
+anova(cars0.lm,cars2w.lm)
+anova(cars1w.lm,cars2w.lm)
+```
+
+
+```{r}
+drop1(cars2w.lm, test = "F")
+
+```
+
+```{r}
+AIC(cars0.lm,cars1w.lm,cars2w.lm)
+BIC(cars0.lm,cars1w.lm,cars2w.lm)
+```
+
+
+```{r}
+summary(cars0.lm)
+summary(cars1w.lm)
+summary(cars2w.lm)
+```
+
+
+# Covariates: selection and multicollinearity
+
+
+
+## Example: coxite ##
+
+```{r}
+library(compositions)
+data(Coxite)
+coxite <- as.data.frame(Coxite)
+pairs(coxite)
+```
+
+
+```{r}
+coxiteAll.lm <- lm(porosity ~ A+B+C+D+E+depth, data=coxite)
+summary(coxiteAll.lm)
+```
+
+
+```{r}
+coxite0.lm <- lm(porosity ~ A+B+C+D+depth, data=coxite)
+summary(coxite0.lm)
+```
+
+
+```{r}
+library(DAAG)
+vif(coxite0.lm)
+cor(coxite$porosity, coxite[,-7])
+```
+
+
+```{r}
+coxite1.lm <- lm(porosity ~ A+B+C, data=coxite)
+summary(coxite1.lm)
+vif(coxite1.lm)
+```
+
+
+```{r}
+coxite2.lm <- lm(porosity ~ B+C, data=coxite)
+summary(coxite2.lm)
+vif(coxite2.lm)
+AIC(coxite0.lm,coxite2.lm)
+```
+
+
+
+# Factors as explanatory variables
+
+## Example: paper resistance ##
+
+paper <- data.frame(resistance =
+c(7, 8, 15,  11, 9, 10,# 5%
+12, 17, 13, 18, 19, 15,# 10%
+14, 18, 19, 17, 16, 18,# 15%
+19, 25, 22, 23, 18, 20), # 20%
+trt = rep(c("5%", "10%", "15%", "20%"),
+c(6, 6, 6, 6)))
+
+paper$trt <- factor(paper$trt,levels=c("5%", "10%", "15%", "20%"))
+# paper$trt <- relevel(paper$trt, ref="5%") # an alternative in order to specify the reference level
+
+paper.aov <- aov( resistance ~ trt , data=paper)
+summary(paper.aov)
+
+paper.lm1 <- lm(resistance ~ trt,data=paper)
+summary(paper.lm1)
+
+summary.lm(paper.aov)
+
+
+## Example: warp breaks ##
+
+library(lattice)
+data(warpbreaks)
+stripplot(breaks ~ tension | wool, warpbreaks, cex=1.2, pch=16)
+
+breaks.aov<-aov(sqrt(breaks) ~ tension*wool, warpbreaks)
+anova(breaks.aov)
+
+breaks0.aov<-aov(sqrt(breaks) ~ 1, warpbreaks)
+breaks1.aov<-aov(sqrt(breaks) ~ tension, warpbreaks)
+breaks2.aov<-aov(sqrt(breaks) ~ tension+wool, warpbreaks)
+anova(breaks0.aov,breaks1.aov,breaks2.aov,breaks.aov)
+
+summary.lm(breaks.aov)
+anova(breaks0.aov,breaks.aov)
+
+## Example: leaf and air temperatures ##
+
+library(DAAG)
+library(lattice)
+xyplot(tempDiff ~ vapPress, leaftemp, groups=CO2level, pch=19, 
+       key=simpleKey(text=c('low','medium','high'),space="top",
+       columns=3,points=FALSE,col=c('blue','magenta','darkgreen'),cex=1.2), 
+       type=c("p","r"),lwd=2)
+
+leaf.lm1 <- lm(tempDiff ~ 1 , data = leaftemp)
+leaf.lm2 <- lm(tempDiff ~ vapPress, data = leaftemp)
+leaf.lm3 <- lm(tempDiff ~ CO2level + vapPress, data = leaftemp)
+leaf.lm4 <- lm(tempDiff ~ CO2level + vapPress + vapPress:CO2level, data = leaftemp)
+anova(leaf.lm1, leaf.lm2, leaf.lm3, leaf.lm4)
+
+summary(leaf.lm3)
+
+par(mfrow=c(2,2))
+plot(leaf.lm3, which = 1, lwd=2, pch = 16, cex.caption=0.8)
+plot(leaf.lm3, which = 2, lwd=2, pch = 16, cex.caption=0.8)
+plot(leaf.lm3, which = 3, lwd=2, pch = 16, cex.caption=0.8)
+plot(leaf.lm3, which = 4, lwd=2, pch = 16, cex.caption=0.8)
+par(mfrow=c(1,1))
+
+plot1 <- xyplot(tempDiff ~ vapPress, leaftemp, groups=CO2level,pch=19,
+abline = list(a=2.6849,b=-0.8392,col='blue',lwd=2),
+key=simpleKey(text=c('low','medium','high'),space="top", columns=3,
+points=FALSE,col=c('blue','magenta','darkgreen'),cex=1.2), lwd=2)
+
+plot2 <- xyplot(tempDiff ~ vapPress, leaftemp, groups=CO2level,pch=19,
+abline = list(a=2.6849+0.3199,b=-0.8392,col='magenta',lwd=2),
+key=simpleKey(text=c('low','medium','high'),space="top", columns=3,
+points=FALSE,col=c('blue','magenta','darkgreen'),cex=1.2), lwd=2)
+
+plot3 <- xyplot(tempDiff ~ vapPress, leaftemp, groups=CO2level,pch=19,
+abline = list(a=2.6849+0.7931,b=-0.8392,col='darkgreen',lwd=2),
+key=simpleKey(text=c('low','medium','high'),space="top", columns=3,
+points=FALSE,col=c('blue','magenta','darkgreen'),cex=1.2), lwd=2)
+
+plot1+plot2+plot3
+
+
+# Regression models with discrete responses
+
+## Example: teaching program ##
+
+program <- matrix(c(1,2.66,20,0,0,2,2.89,22,0,0,3,3.28,24,0,0,4,2.92,12,0,
+                    0,5,4.00,21,0,1,6,2.86,17,0,0,7,2.76,17,0,0,8,2.87,21,
+                    0,0,9,3.03,25,0,0,10,3.92,29,0,1,11,2.63,20,0,0,12,3.32,
+                    23,0,0,13,3.57,23,0,0,14,3.26,25,0,1,15,3.53,26,0,0,16,
+                    2.74,19,0,0,17,2.75,25,0,0,18,2.83,19,0,0,19,3.12,23,1,
+                    0,20,3.16,25,1,1,21,2.06,22,1,0,22,3.62,28,1,1,23,2.89,
+                    14,1,0,24,3.51,26,1,0,25,3.54,24,1,1,26,2.83,27,1,1,27,
+                    3.39,17,1,1,28,2.67,24,1,0,29,3.65,21,1,1,30,4.00,23,1,
+                    1,31,3.10,21,1,0,32,2.39,19,1,1), nrow=32, byrow=T)
+colnames(program) <- c("OBS","GPA","TUCE","PSI","GRADE")
+program <- as.data.frame(program)
+
+mod0.lm <- lm(GRADE ~ GPA + TUCE + PSI , data = program)
+plot(program$GRADE,fitted(mod0.lm),pch=19,ylim=c(-0.1,1.1),xlab="GRADE",
+     ylab="Fitted values")
+abline(0,0,col='red',lwd=2)
+abline(1,0,col='red',lwd=2)
+
+boxplot(fitted(mod0.lm)~program$GRADE,xlab="GRADE",ylim=c(-0.1,1.1),
+        ylab="Fitted values")
+abline(0,0,col='red',lwd=2)
+abline(1,0,col='red',lwd=2)
+
+mod.glm <- glm(GRADE ~ PSI , family = binomial, data = program)
+summary(mod.glm)
+
+conttable <- table(program$PSI, program$GRADE)
+conttable
+odds <- conttable[,2]/conttable[,1]
+odds
+log(odds)
+OR <- odds[2]/odds[1]
+OR
+
+mod.glm$coef[1]
+mod.glm$coef[1]+mod.glm$coef[2]
+mod.glm$coef[2]
+log(OR)
+
+mod.glm.all <- glm(GRADE ~ PSI + TUCE + GPA, family = binomial, data = program)
+summary(mod.glm.all)
+
+plot(program$GRADE,mod.glm.all$fitted.values,pch=19,ylim=c(-0.1,1.1),xlab="GRADE",
+     ylab="Fitted values")
+abline(0,0,col='red',lwd=2)
+abline(1,0,col='red',lwd=2)
+
+# the following commands give the same output
+# mod.glm.all$fitted.values
+# exp(predict(mod.glm.all))/(1+exp(predict(mod.glm.all)))
+
+pred <- as.numeric(exp(predict(mod.glm.all))/(1+exp(predict(mod.glm.all)))>0.5)
+table(pred,program$GRADE)
+(18+8)/(18+3+3+8)
+
+library(DAAG)
+CVbinary(mod.glm.all)
+
+## Example: credit card ##
+
+library(ISLR)
+library(lattice)
+attach(Default)
+xyplot(income ~ balance, groups=default,data=Default,auto.key=list(columns=2))
+
+par(mfrow=c(1,2))
+boxplot(balance~default, data=Default,xlab="default",ylab="balance",
+        col=c("deepskyblue","magenta"))     
+boxplot(income~default, data=Default,xlab="default",ylab="income",
+        col=c("deepskyblue","magenta"))
+par(mfrow=c(1,1))
+
+credit1<-glm(default~balance,family="binomial", data=Default)
+summary(credit1)
+
+predict(credit1,data.frame(balance=c(1000,2000)),type = c("response"))
+
+Default$studentD<-0
+Default$studentD[Default$student=="Yes"]<-1
+credit2<-glm(default~studentD,family="binomial", data=Default)
+summary(credit2)
+
+# the same result can be obtained with the folowing command, using the variable student
+# credit2<-glm(default~student,family="binomial", data=Default)
+
+predict(credit2,data.frame(studentD=c(1,0)),type = c("response"))
+
+credit3<-glm(default~income+balance+studentD,family="binomial", data=Default)
+summary(credit3)
+
+## Example: UCB admissions ##
+
+odds.ratio<-function(x){(x[1,1]*x[2,2])/(x[1,2]*x[2,1])}
+apply(UCBAdmissions,3,odds.ratio)
+margin.table(UCBAdmissions,c(2,1))
+odds.ratio(margin.table(UCBAdmissions,c(2,1)))
+
+UCB <- as.data.frame.table(UCBAdmissions["Admitted", , ])
+names(UCB)[3] <- "admit"
+UCB$reject <- as.data.frame.table(UCBAdmissions["Rejected", , ])$Freq
+UCB$Gender <- relevel(UCB$Gender, ref="Male")
+UCB$total <- UCB$admit + UCB$reject
+UCB$p <- UCB$admit/UCB$total
+UCB
+
+UCB.glm1 <- glm(p ~ Dept+Gender, family=binomial, data=UCB, weight=total)
+summary(UCB.glm1)
+
+# the same result can be obtained with the command
+# UCB.glm1 <- glm(cbind(admit, reject) ~ Dept+Gender, family=binomial, data=UCB)
+
+1/exp(UCB.glm1$coefficients[7])
+
+anova(UCB.glm1, test="Chisq")
+
+UCB.glm2 <- glm(p ~ Gender+Dept, family=binomial, data=UCB, weight=total)
+summary(UCB.glm2)
+anova(UCB.glm2, test="Chisq")
+
+UCB.glm <- glm(p ~ Dept*Gender, family=binomial, data=UCB, weight=total)
+summary(UCB.glm)
+
+anova(UCB.glm, test="Chisq")
