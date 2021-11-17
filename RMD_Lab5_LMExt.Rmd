@@ -592,14 +592,20 @@ In entrambi i casi, il t. quadratico risulta vantaggioso.
 
 Esercizio: prova a rimuovere logdist (non quadrato) dal modello.
 
+# 17/11/2021
 
 ## Example: cars
+
 
 ```{r}
 plot(dist ~ speed, data = cars, xlim=c(3,1.04*max(speed)),
      ylim=c(0,1.04*max(dist)), xlab = 'Speed', ylab = 'Distance', pch = 16)
 ```
 
+
+### Impl. di un modello polinomiale
+
+Andiamo a costruire un modello dove considero un nuovo regressore (il quadrato)
 
 ```{r}
 cars2.lm <- lm(dist ~ speed + I(speed^2),data=cars)
@@ -607,21 +613,43 @@ cars2.lm <- lm(dist ~ speed + I(speed^2),data=cars)
 ```
 
 
+Ora voglio sovrapporre al plot il mio modello quadratico. Come faccio?
 
+
+Alternativa 1:
 ```{r}
-dat <- data.frame(speed = seq(3,25,length=100))
-fv <- predict(cars2.lm,newdata=dat,se=TRUE)
+# specifico una serie di valori equispaziati per il reg. speed
+dat <- data.frame(speed = seq(3,25,length=100)) 
+# uso i valori per fare una previsione
+fv <- predict(cars2.lm,newdata=dat,se=TRUE) # (se=TRUE <- calcola anche std. error)
+
+# elemento fit <- contiene medie stimate
+fv$fit
+```
+
+
+Alternativa 2: 
+```{r}
+# prendo stime dei coefficienti e le moltiplico per valori x (applico manualmente il modello)
 fitvalues <- cars2.lm$coef[1] + cars2.lm$coef[2]*seq(3,25,length=100) + 
        cars2.lm$coef[3]*seq(3,25,length=100)^2
-fv$fit
 fitvalues
 ```
+
+
 
 
 ```{r}
 plot(dist ~ speed, data = cars, xlim=c(3,1.04*max(speed)),
      ylim=c(0,1.04*max(dist)), xlab = 'Speed', ylab = 'Distance', pch = 16)
-lines(dat$speed,fv$fit,lwd=2, col='red')
+
+# sovrascrivo scatterplot con nuovi valori (come linea)
+lines(dat$speed,
+      fv$fit,
+      lwd=2, 
+      col='red')
+
+# (potrei essere interessato a confrontare questo con pattern suggerito dai dati)
 with(cars, lines(lowess(dist ~ speed, f=.7), lwd=2, col='blue'))
 ```
 
@@ -630,12 +658,19 @@ with(cars, lines(lowess(dist ~ speed, f=.7), lwd=2, col='blue'))
 summary(cars2.lm)
 
 ```
+Oss.
+
+* per discorso co-linearità, non posso fidarmi del test T
+* (vedremo come trattare, eg. vif)
 
 ```{r}
 library(DAAG)
 vif(cars2.lm)
 ```
+vif > 5 --> indice di co-linearità (vedremo meglio in seguito)
 
+
+### Diagnostiche
 
 ```{r}
 par(mfrow=c(2,2))
@@ -648,32 +683,114 @@ plot(cars2.lm, which = 4,lwd=2, pch = 16, cex.caption=0.8)
 par(mfrow=c(1,1))
 ```
 
+Cosa osservo?
 
+* man mano che cresce speed, la variabilità non è costante 
+
+<- cattivo segnale
+
+
+Idea: considerare i minimi quadrati pesati:
+pesare per il reciproco di speed
 ```{r}
-cars2w.lm <- lm(dist ~ speed + I(speed^2),data=cars,weights=1/speed)
+cars2w.lm <- lm(dist ~ speed + I(speed^2),
+                data=cars, 
+                # specifico che i pesi che voglio avere sono il reciproco della velocità
+                weights=1/speed  
+                )
+
+
 summary(cars2w.lm)
 ```
 
+Oss. le diagnostiche mi accorgo che ho un miglioramento [...]
+
+### Confronto tra modelli (annidati e non)
+
+Parto def. alcuni modelli alternativi 
+```{r}
+cars0.lm <- lm(dist ~ speed, data = cars) # solo speed
+
+# solo speed al quadrato (senza considerare l'intercetta 
+# e con il metodo dei minimi quadrati pesati)
+cars1w.lm <- lm(dist ~ I(speed^2) -1, data=cars, weights=1/speed) 
+
+# mod precedente (...)
+cars2w.lm <- lm(dist ~ speed + I(speed^2), data=cars, weights=1/speed)
+
+```
+
+#### Confronto tra due modelli con test F e ANOVA
+Ora confronto due mod. nested per volta:
+```{r}
+# cars0.lm è incluso in cars2w.lm
+anova(cars0.lm,cars2w.lm)
+```
+
+Test F (non specifichiamo la statistica test ma la logica)
+
+* i dati favoriscono chiaramente il modello due
 
 ```{r}
-cars0.lm <- lm(dist ~ speed, data = cars)
-cars1w.lm <- lm(dist ~ I(speed^2) -1, data=cars, weights=1/speed)
-cars2w.lm <- lm(dist ~ speed + I(speed^2), data=cars, weights=1/speed)
-anova(cars0.lm,cars2w.lm)
+# cars1w.lm è incluso in cars2w.lm
 anova(cars1w.lm,cars2w.lm)
 ```
 
+* in questo caso, i dati favoriscono sempre il modello due, ma con meno certezza 
+(p-value circa = 5%)
+
+
+#### Confronto con drop 1
+
+* parto da modello full
+* valuto cosa succede quando tolgo una covariata
+
+(vice-versa head1 calcola l'inserimento di una covariata alla volta)
 
 ```{r}
 drop1(cars2w.lm, test = "F")
 
+# NOTA: potrei anche "focalizzare" l'attenzione su alcuni regressori 
+# specificando il parametro scope=...
+
+
+
+# NOTA2: potrei anche voler specificare il test, k (peso del termine di penalizzazione 
+# dei criteri di tipo akaike - eg. k=log(n) <- BIC)
 ```
+
+Oss. tra le covariate conviene escludere questa specifica (speed)
+
+* valori AIC <- più basso è, meglio è (in questo caso, il risultato migliore si ottiene senza speed)
+* come P-value, osserviamo che i valori corrisp. a quelli del test T. Perché?
+
+Perchè vado a testare, con proc. analoghe, le stesse ipotesi (beta=0, beta!=0 mantenendo gli altri regressori)
+
+
+#### Alcune considerazioni su AIC
 
 ```{r}
 AIC(cars0.lm,cars1w.lm,cars2w.lm)
-BIC(cars0.lm,cars1w.lm,cars2w.lm)
 ```
 
+Oss: I valori AIC che vedo qua sono diverse da quelle di drop1, ma non dobbiamo preoccuparci
+
+La cosa rilevante è il confronto tra i valori (non i val. stessi che possono essere calcolati con metodi diversi)
+
+DOMANDA: perchè usando l'AIC nel drop1 si preferisce il mod1 e qui invece si preferisce il modello2? 
+ATTENZIONE A COSA STIAMO CONFRONTANDO: qui sto confrontanto un mod. diverso! Qui NON considero l'intercetta 
+
+
+```{r}
+BIC(cars0.lm,cars1w.lm,cars2w.lm)
+
+```
+
+Oss: applicando BIC il valore preferito è l'1 (non il due dell'AIC)
+
+Filosofia di BIC <- penalizza modelli complessi
+
+#### Summary sui 3 mod. concorrenti e conftonto su R^2
 
 ```{r}
 summary(cars0.lm)
@@ -681,12 +798,78 @@ summary(cars1w.lm)
 summary(cars2w.lm)
 ```
 
+[...] (fai da solo)
+
 
 # Covariates: selection and multicollinearity
 
+## Consideraz. varie
+
+Spesso, si raccolgono molte potenziali variabili esplicative dei dati (spesso sono troppe)
+
+esempio: ho una variabile che voglio spiegare e 20 covariate. Come mi comporto?
+
+1) conoscenza degli esperti (quali var. mi aspetto siano importanti?)
+
+2) quanti dati voglio avere se voglio stimare un modello con N covariate?
+
+buona norma: osservazioni >= 10*N covariate
+
+putroppo una situaz. tipica è oss. <= covariate
+
+3) visualizzazione grafica (matrice con i vari scatterplot)
+
+4) cercare di evitare co-variate che danno info equivalenti 
+
+5) attenzione a "correlazioni spurie" 
+
+(apparenti) correlazioni tra variabili:
+
+* completamente scorrelate ma che per caso hanno andamenti simili
+* 2 variabili entrambe correlate con una terza molto generica
+
+(vedi esempi simpatici del sito)
+
+### I metodi
+
+Abbiamo visto alcuni metodi moderni: LASSO, ...
+
+Altra idea: aggregare tante covariate in poche (ovviamente così semplifico la modellazione ma perdo capacità esplicativa)
+
+## Il problema della multi-collinearità 
+
+più covariate portano informazioni sovrapposte, quando due covariate sono a loro volta correlate 
+
+(succede specie nelli studi osservazionali <- dove osservo cose "in natura", senza predisporre l'esperimento)
+
+Come misurare? 
+
+* indice VIF (fattore d'inflazione della varianza) <- 
+
+$VIF_j = 1/(1-R_j^2)$
+
+$R_j^2$ <- coeff. di correlaz. lineare dove la risposta è variabile e le altre sono i potenziali regressori.
 
 
-## Example: coxite ##
+=> VIF alto -> elevata collinearità 
+
+* circa 4,5 <- zona critica
+* > 10 <- forte
+* circa 1 <- regressori praticamente ortogonali
+
+## Example: coxite
+
+25 oss, campioni di roccia.
+
+tante variabili: 
+
+* percentuali di 5 minerali (A,B,C,D,E)
+* profondità
+* porosità della roccia 
+
+NOTA: A+B+C+D+E = 100% <- gia qui capisco che potenzialm. potrei toglierne una 
+
+OBIETTIVO: studio della porosità tenendo conto delle altre
 
 ```{r}
 library(compositions)
@@ -701,19 +884,44 @@ coxiteAll.lm <- lm(porosity ~ A+B+C+D+E+depth, data=coxite)
 summary(coxiteAll.lm)
 ```
 
+OSS.ni:
 
+* tutti i test T alti <- nessun regressore va benissimo
+* R scarta E perchè si accorge che è totalmente dipendente dagli altri
+* test F molto basso <- non conviene il mod. nullo
+
+Problema: tutti i T sono alti, che faccio? Quali tengo?
+
+
+Proviamo a togliere E:
 ```{r}
 coxite0.lm <- lm(porosity ~ A+B+C+D+depth, data=coxite)
 summary(coxite0.lm)
 ```
 
 
+Proviamo il test VIF:
+
+
 ```{r}
 library(DAAG)
 vif(coxite0.lm)
-cor(coxite$porosity, coxite[,-7])
 ```
 
+
+A parte per depth, il regressore assume valore molto alto (alta correlaz. tra di loro)
+
+Proviamo a calcolare la correlaz. tra la la porosità e gli altri parametri
+
+
+```{r}
+cor(coxite$porosity, coxite[,-7])
+
+```
+
+Oss. valori elevati (positiv. e negativ.) per A,B,C => penso a tenerli 
+
+=> costruisco un modello con A, B, C:
 
 ```{r}
 coxite1.lm <- lm(porosity ~ A+B+C, data=coxite)
@@ -722,18 +930,111 @@ vif(coxite1.lm)
 ```
 
 
+Dal p-value del test T sembra, che A sia un buon candidato per essere scartato:
+
+=> costruisco un nuovo modello con solo B e C
+
 ```{r}
 coxite2.lm <- lm(porosity ~ B+C, data=coxite)
 summary(coxite2.lm)
 vif(coxite2.lm)
-AIC(coxite0.lm,coxite2.lm)
 ```
 
 
+Ora facciamo un confronto tra i modelli 
+
+```{r}
+AIC(coxite0.lm,coxite2.lm)
+AIC(coxite1.lm,coxite2.lm)
+
+```
+
+Oss:
+
+il mod. 2 sembra essere il più robusto (anche per la sua semplicità)
+
+(NOTA: avendo poche covariati, potrei valutare anche analisi più approfondite in questo caso)
+
+[...]
 
 # Factors as explanatory variables
 
+
+[...]
+
+
+## Analisi della varianza a più vie (ANOVA 2 WAYS)
+
+Il fatto che due fattori siano presenti assieme, per la loro iterazione possono influenzare la variabile risposta
+
+### Es. le rotture del filo
+
+Var risposta numerico, più fattori
+
+n.rotture filo su lungh. fissa di filo
+
+fattori <- due lv. per tipi di lana, tre. lv di tensione
+
+=> 6 gruppi
+
+9 osservazioni.
+
+[... tab. da slide 58 ... ]
+
+Partiamo da due plot (uno per A e uno per B)
+
+
+Proviamo a "unire" i valori medi per ogni valore (L,M,H)
+
+sovrapponiamo i grafici di A e B. 
+
+Oss. che non c'è solo un effetto diretto di "lana" e "tensione", ma anche un effetto dato dall'iterazione dei due fattori
+
+
+## Il modello per l'ANOVA a due vie
+
+Senza iteraz. tra i due fattori, mi aspetto - per ogni fattore - la stessa influenza indipendentemente dal valore dell'altro fattore
+
+modello: 
+
+$y_{ijk} = \mu + \alpha_i + \beta_j + \epsilon_{ijk}$
+
+$\alpha_1 , ... , \alpha_a $ <- influenza dei valori 1...a dei del primo fattore
+
+$\beta_1 , ... , \alpha_a $
+
+
+### Il test
+
+H0: $\alpha_1 = ... = \alpha_a = 0$
+H1: almeno uno è diverso da 0
+
+
+
+### E per l'effetto itarazione?
+
+Introduco $\gamma_{ij}$ nel modello [...]
+
+
+## Considerazioni
+
+
+* gerarchia di analisi. Di solito si parte sull'analisi dei gamma (se c'è l'iterazione, probabilmente ci saranno anche gli effetti separati)
+
+* [...]
+
+* p-value 
+
+
+
+## [...]
+
+
+
+
+
 ## Example: paper resistance ##
+
 
 paper <- data.frame(resistance =
 c(7, 8, 15,  11, 9, 10,# 5%
@@ -755,22 +1056,39 @@ summary(paper.lm1)
 summary.lm(paper.aov)
 
 
-## Example: warp breaks ##
+## Example: warp breaks
 
+
+
+
+```{r}
 library(lattice)
 data(warpbreaks)
 stripplot(breaks ~ tension | wool, warpbreaks, cex=1.2, pch=16)
+```
 
+
+
+
+```{r}
 breaks.aov<-aov(sqrt(breaks) ~ tension*wool, warpbreaks)
 anova(breaks.aov)
+```
 
+
+```{r}
 breaks0.aov<-aov(sqrt(breaks) ~ 1, warpbreaks)
 breaks1.aov<-aov(sqrt(breaks) ~ tension, warpbreaks)
 breaks2.aov<-aov(sqrt(breaks) ~ tension+wool, warpbreaks)
 anova(breaks0.aov,breaks1.aov,breaks2.aov,breaks.aov)
+```
 
+
+```{r}
 summary.lm(breaks.aov)
 anova(breaks0.aov,breaks.aov)
+```
+
 
 ## Example: leaf and air temperatures ##
 
