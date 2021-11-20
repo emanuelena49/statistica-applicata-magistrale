@@ -957,7 +957,7 @@ il mod. 2 sembra essere il più robusto (anche per la sua semplicità)
 
 [...]
 
-# Factors as explanatory variables
+# Factors as explanatory variables (introduzione di variabili esplicative categoriali)
 
 
 [...]
@@ -1010,7 +1010,6 @@ H0: $\alpha_1 = ... = \alpha_a = 0$
 H1: almeno uno è diverso da 0
 
 
-
 ### E per l'effetto itarazione?
 
 Introduco $\gamma_{ij}$ nel modello [...]
@@ -1020,22 +1019,22 @@ Introduco $\gamma_{ij}$ nel modello [...]
 
 
 * gerarchia di analisi. Di solito si parte sull'analisi dei gamma (se c'è l'iterazione, probabilmente ci saranno anche gli effetti separati)
-
 * [...]
-
 * p-value 
-
 
 
 ## [...]
 
 
 
-
-
 ## Example: paper resistance ##
 
+Dataframe di due elementi: resistence e trt
 
+* res. <- numerico
+* trt <- categoriale 
+
+```{r}
 paper <- data.frame(resistance =
 c(7, 8, 15,  11, 9, 10,# 5%
 12, 17, 13, 18, 19, 15,# 10%
@@ -1043,22 +1042,75 @@ c(7, 8, 15,  11, 9, 10,# 5%
 19, 25, 22, 23, 18, 20), # 20%
 trt = rep(c("5%", "10%", "15%", "20%"),
 c(6, 6, 6, 6)))
+```
 
+Forzo l'interpr. di trt come fattore
+(implicitamente gli dico che il primo è il livello di riferimento https://it.wikipedia.org/wiki/Valore_p )
+
+```{r}
 paper$trt <- factor(paper$trt,levels=c("5%", "10%", "15%", "20%"))
 # paper$trt <- relevel(paper$trt, ref="5%") # an alternative in order to specify the reference level
+```
 
+
+Cassico testi di varianza ad una via:
+```{r}
 paper.aov <- aov( resistance ~ trt , data=paper)
 summary(paper.aov)
+```
 
+Oss:
+* ip. nulla pu essere ignorata (p-value molto basso, almeno una var espl != 0)
+
+
+
+### Approccio lm
+
+Posso usare anche appr. lm:
+Approccio lm vs approccio aov <- lm è più generale, posso anche fare analisi con var espl. miste
+
+
+specifichiamo un mod. lineare (anche con categoriale)
+
+
+Cosa fa R?
+* vede trt come categoriale
+* vede 4 lv
+* considera 5% come "reference level"
+* tante var dummy tante quante i lv. - 1
+
+```{r}
 paper.lm1 <- lm(resistance ~ trt,data=paper)
 summary(paper.lm1)
+```
 
+
+
+
+
+```{r}
 summary.lm(paper.aov)
+
+```
+
+Oss.
+
+* beta 0 stimato a 10 <- è l'intercetta
+* beta 1,2,3 sommate a beta 0 danno la stima della media a 10%, 15%, 20%
+* test F <- mette a confronto [...]
+
+in AOV <- ip. nulla (la stessa che ho qua) => stesso risultato
+
+* p-value <- corrisp. anch'esso al precedente
 
 
 ## Example: warp breaks
 
+risposta: n rotture
+esplicative:
 
+* tipo lana <- 2lv
+* tensione filo <- 3lv
 
 
 ```{r}
@@ -1067,55 +1119,321 @@ data(warpbreaks)
 stripplot(breaks ~ tension | wool, warpbreaks, cex=1.2, pch=16)
 ```
 
+### Anova a 2 vie
 
+Calibriamo mod analisi var a 2 vie
 
+* Prendo come risposta la radice di breaks (sperando di ottenere res più omogeneo per i due gruppi)
+* oss. la sintassi sulle var esplicative: "tension*wool" cosa vuol dire?
+
+<- modo compatto di scrivere $tension + wool + tension/wool$ 
+(effetto dei due elementi + effetto iterazione)
 
 ```{r}
 breaks.aov<-aov(sqrt(breaks) ~ tension*wool, warpbreaks)
 anova(breaks.aov)
 ```
 
+Con summary o anova otteniamo output con f. classica (di analisi varianza). 
+
+Cosa ci dice:
+
+* 3 p-value <- legati a test F, simili nella logica ai test T
+
+eg. con rif a Tension verifico se escludo o includo l'eff. di tension (mantenendo gli altri)
+
+(<- come test T sui beta)
+
+* riga finale dei residuals <- somma dei quad residui (sulla base di tutti i regressori) + media
+
+* analisi gerarchica
+
+
+### Stima manuale dei vari sotto-modelli
+
+Cosa succede se faccio anova su seq. di modelli? 
+
+Appl. a casaca dei test F
 
 ```{r}
-breaks0.aov<-aov(sqrt(breaks) ~ 1, warpbreaks)
-breaks1.aov<-aov(sqrt(breaks) ~ tension, warpbreaks)
-breaks2.aov<-aov(sqrt(breaks) ~ tension+wool, warpbreaks)
+breaks0.aov<-aov(sqrt(breaks) ~ 1, warpbreaks) # modello nullo
+breaks1.aov<-aov(sqrt(breaks) ~ tension, warpbreaks) # solo tension
+breaks2.aov<-aov(sqrt(breaks) ~ tension+wool, warpbreaks) # tension e wool 
+# breaks.aov <- ... # mod. full di prima
+
+
 anova(breaks0.aov,breaks1.aov,breaks2.aov,breaks.aov)
 ```
+
+Cosa si dice?
+
+* quali sono i mod in gioco
+* serie di test F i cui p-value corrisp a quelli di prima (perché? è quello che anova ha fatto automanticamente preso dirett. il modello complesso)
+
+
 
 
 ```{r}
 summary.lm(breaks.aov)
+
+# confronto tra tension - tension + wool
 anova(breaks0.aov,breaks.aov)
 ```
 
+[...]
 
-## Example: leaf and air temperatures ##
+Perchè il anova oss. diversità dei p-value?
 
+Anova def. test T => verifico l'effetto tension null vs positivo MA 
+
+1) mantengo sia wool che l'iterazione
+2) mantengo solo wool (l'iterazione non era ancora in gioco!)
+
+
+### Costruire un mod. lineare
+
+Considerazioni:
+
+* prima var <- 2 lv => var binaria
+* secona var <- 3 lv => 2 var binarie (con un "valore di riferimento")
+* l'iterazione? dovrei introdurre 2 variabili dummy in più
+* beta0 <- somma di tutti i val di riferimento
+
+Posso prendere ogg. "breaks" (doppia classe) e lo metto in summary.lm
+
+```{r}
+summary.lm(breaks.aov)
+
+```
+
+* TEst F: mod nullo (solo intercetta) vs almeno 1 != 0
+* intercept <- beta 0 <- media della risposta quando sono nel grup. di riferimento nei due fattori
+* tensionM <- si accende la dummy riferita al fatt. tension (A,L->A,M)
+=> beta0 + beta1 <- lv. medio se lana=A e passo da L a M
+
+* tensionH <- passaggio A,M->A,H
+=> beta0 + beta2 <- lv. medio se lana=A e passo da A,L a A,H
+
+(nota: in entrambi i passaggi oss. un abbassamento)
+
+* woolB <- dummy rif. a fattore lana, passaggio da gruppo A,L->B,L
+
+* consideriamo ora le ultime due righe: effetto iterazione
+
+cosa succede quando cambio sia il lv. del primo fattore che del secondo?
+
+nel dettaglio:
+
+* tensionM:woolB <- passaggio A,L -> B,M (tutte le var dummy attive, tranne tensionH)
+* tensionH:woolB <- passaggio A,L -> B,H (in questo caso si attivano tutte le var dummy)
+
+
+### ANOVA: mod. nullo vs modello full 
+Ultima consid su anova: se metto a confronto modello nullo e modello full:
+
+```{r}
+anova(breaks0.aov,breaks.aov)
+```
+
+<- corrisp a test F su lm 
+(tutti = 0 vs almeno 1 != 0)
+
+
+# -------------------------------------------------------------------
+# 19/11/2021 - Teoria
+
+
+## Trattare contemporaneamente fattori e var. numeriche in lm
+
+### Senza effetto iterazione
+
+Modelli di analisi dewll covarianza (mod. di correlaz. lineare)
+
+Fino adesso, appr. conveniente (x reg. categoriali): dummy
+
+es. abbiamo un modello con una var esplicativa categoriale a 3 lv (lv di istruzione)
+
+=> 1 intercetta  $\beta_0$ + due var. dummy $\beta_1*x_{i1} + \beta_2*x_{i2}$
+
+$\beta_0$ <- lv. 1
+$\beta_0 + \beta_1$ <- passaggio da Lv1 a Lv2
+$\beta_0 + \beta_2$ <- passaggio da Lv1 a Lv3
+
+Diciamo che si introduce un secondo regressore numerico (senza effetto iterazione)
+
+=> aggiungo $\beta_3*x_{i3}$
+
+Risultato finale: alla fine è come se avessi un modello per ogni combinazione, dove il coef. è lo stesso e cambia l'intercetta
+
+### Con effetto iterazione
+
+se avessi anche iterazione? altri due termini aggiuntivi 
+
+Nei vari modelli non cambia più solo l'intercetta ma anche il coef angolare.
+
+es:
+
+x <- age, gender <- fattore binario (var dummy g), effetto iterazione
+
+modello:
+
+$y_i = \beta_0 + \beta_1*x_i + \beta_2*g_i + \beta_3*g_i*x_i + \epsilon_i$ 
+
+<- riconducibile a due modelli:
+
+* modello per solo maschi: $y = \beta_0 + \beta_1*x$ 
+* modello per solo femmine: $y = (\beta_0+\beta_2) + (\beta_1 + \beta_3)*x$ 
+
+(oss. che anche il coeff. varia)
+
+[vedi tab. slide 69 su test F che posso fare]
+
+
+### Confronto tra le rette
+
+Analisi con var categoriali + numeriche --> insieme di modelli (paralleli o non)
+
+se ho mod. non paralleli (effetto iterazione), ho diverse rette con diversi coefficenti
+
+Cosa posso analizzare? potrei voler vedere se i modelli sono veramente diversi o se la diff. è accidentale.
+
+valutare anche confronto tra modello con o senza iterazione
+
+
+## Example: leaf and air temperatures 
+
+### Rappr. grafica (con Lattice)
+
+Rapp. grafica dei dati:
+
+* diff. gruppi per colori
+* fit sui 3 gruppi
+
+```{r}
 library(DAAG)
 library(lattice)
-xyplot(tempDiff ~ vapPress, leaftemp, groups=CO2level, pch=19, 
-       key=simpleKey(text=c('low','medium','high'),space="top",
-       columns=3,points=FALSE,col=c('blue','magenta','darkgreen'),cex=1.2), 
-       type=c("p","r"),lwd=2)
+xyplot(tempDiff ~ vapPress, # cosa mostrare
+       leaftemp, 
+       groups=CO2level, # dividi i gruppi per questa var
+       pch=19, 
+       
+       # def legenda, colori, ecc.
+       key=simpleKey(
+          text=c('low','medium','high'), space="top", columns=3,        
+          points=FALSE, col=c('blue','magenta','darkgreen'), cex=1.2), 
+       
+       type=c("p","r"), # fai lo scatterplot sia dei punti che delle rette di regres.
+       lwd=2)
+```
 
+
+### Confronto tra modelli
+
+Creiamo i vari modelli (dal più semplice a quello completo)
+```{r}
 leaf.lm1 <- lm(tempDiff ~ 1 , data = leaftemp)
 leaf.lm2 <- lm(tempDiff ~ vapPress, data = leaftemp)
 leaf.lm3 <- lm(tempDiff ~ CO2level + vapPress, data = leaftemp)
-leaf.lm4 <- lm(tempDiff ~ CO2level + vapPress + vapPress:CO2level, data = leaftemp)
+leaf.lm4 <- lm(tempDiff ~ CO2level + vapPress + vapPress:CO2level, # == vapPress*CO2level
+               data = leaftemp)
+
+```
+
+
+Come prima cosa chiamiamo anova per confrontare i 3 mod. con la logica dei test T
+```{r}
 anova(leaf.lm1, leaf.lm2, leaf.lm3, leaf.lm4)
 
-summary(leaf.lm3)
+```
 
+
+* Primi due p-value <- bassi 
+=> sia vapPress che il lv. di CO2 sembrano essere influenti
+
+* ultimo test: ipotesi di iteraz. nulla <- p-value alto 
+=> l'iteraz. non sembra così significativa
+
+E se avessi usato solo anova con full?
+```{r}
+anova(leaf.lm4)
+```
+
+Ultimo risultato <- equivalente
+Altri <- diversi (ricordo che ora sto ver. le ipotesi: 
+var. in analisi = 0, resto != 0)
+
+
+Perchè non usare invece summary su lm?
+```{r}
+summary(leaf.lm4)
+```
+
+In questo caso faccio analisi più fine DEI SINGOLI livelli, con anova invece ho fatto un'analisi più globale delle var. esplicative.
+
+
+### Confronto con AIC e BIC
+
+```{r}
+AIC(leaf.lm1, leaf.lm2, leaf.lm3, leaf.lm4)
+BIC(leaf.lm1, leaf.lm2, leaf.lm3, leaf.lm4)
+```
+
+Oss. che AIC mi porta a lv. 4  e BIC a lv. 3. (come anova)
+
+=> cosa fare? dipende da cosa cerchiamo:
+
+* se vogliamo modello che sia semplice e robusto (es per previsioni), scelgo 3
+* se invece vogliamo qualcosa più rappresentativo dei dati specifici (e non usato per previsioni) potrei scegliere il mod. 4
+
+
+Diciamo che scelgo il mod. 3:
+
+```{r}
+summary(leaf.lm3)
+```
+Oss.
+
+* cambia l'intercetta
+* coeff angolare (vapPress, quello negativo) è sempre quello
+
+
+* il passaggio da primo e secondo lv del fattore non è molto supportato dai dati (p-value alto), potrebbe essere accidentale
+ 
+ 
+### Analisi diagnostica
+
+
+Grafici di diagnostica:
+```{r}
 par(mfrow=c(2,2))
 plot(leaf.lm3, which = 1, lwd=2, pch = 16, cex.caption=0.8)
 plot(leaf.lm3, which = 2, lwd=2, pch = 16, cex.caption=0.8)
 plot(leaf.lm3, which = 3, lwd=2, pch = 16, cex.caption=0.8)
 plot(leaf.lm3, which = 4, lwd=2, pch = 16, cex.caption=0.8)
 par(mfrow=c(1,1))
+```
+Oss:
+* residui stimati e val stimati <- non ci sono particolari criticità
+* qqplot <- abbastanza bene (code a parte, ma okay, li abbiamo pochi dati)
+* sigma quadro errori al variare regressori <- non evidenzia particolari stranezze
+* dist. di cook <- sembrano elevate, ma in realtà siamo attorno allo 0.10 (non è tanto)
 
+### Rapp grafica del mio modello
+
+voglio def la rel tra tempDiff e vapPress, con anche l'influenza di CO2level
+
+* Def 3 ogg grafici (1 per gruppo)
+* Li sommo
+
+```{r}
 plot1 <- xyplot(tempDiff ~ vapPress, leaftemp, groups=CO2level,pch=19,
-abline = list(a=2.6849,b=-0.8392,col='blue',lwd=2),
+                
+# di default, R mostra solo i punti <- la retta ho voluto aggiungerla manualmente
+abline = list(a=2.6849, # intercetta (oss che la ricalcolo in ogni caso)
+              b=-0.8392, # coeff angolare (comune a tutte 3 le rette)
+              col='blue',lwd=2),
+
+
 key=simpleKey(text=c('low','medium','high'),space="top", columns=3,
 points=FALSE,col=c('blue','magenta','darkgreen'),cex=1.2), lwd=2)
 
@@ -1130,6 +1448,36 @@ key=simpleKey(text=c('low','medium','high'),space="top", columns=3,
 points=FALSE,col=c('blue','magenta','darkgreen'),cex=1.2), lwd=2)
 
 plot1+plot2+plot3
+```
+
+
+## Approfondimento paradosso di Simpson
+
+Casi gravi, vaccini, Israele
+
+problema della trascurazione di fattori rilevanti in un'analisi
+
+### Dose farmaco vs prob. ricovero
+
+* diciamo che voglio correlare la dose in mg di farmaco con la prob di ricovero.
+* Raccolgo un po' di dati, li rappresento in un plot 
+* facendo un fit, osservo che sembra ci sia una corr. lineare tra dose e prob. ricovero
+
+Cosa è successo?
+
+* oss due cluster [vedi slide] <- il fattore età (over 50 e under 50)
+* provo a tenerne conto con modelli di analisi della covarianza.
+* oss due rette di regressione (con pendenza ed intercetta diversa), entrambi con coef. negativo 
+=> ok, osservo che in entrambi i casi la dose aiuta (anche se un po' di meno per gli over 50)
+
+
+
+
+
+
+
+
+
 
 
 # Regression models with discrete responses
