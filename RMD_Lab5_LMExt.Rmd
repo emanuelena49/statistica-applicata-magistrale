@@ -1471,19 +1471,168 @@ Cosa è successo?
 => ok, osservo che in entrambi i casi la dose aiuta (anche se un po' di meno per gli over 50)
 
 
+# Teoria 22/11/2021: Le var risposte non gaussiane (es. risposta bernoulliana)
+
+## Intro
+
+Come applicare reg. lineare per var. risposta non gaussiane?
+
+* reg bernoullina
+* reg logistica
+* classe dei modelli gamma (mod additivi generaliz.)
+* modelli di dispersione
+* generaliz. con modellazioni non parametriche (+ flessibili)
+
+### Direttive di generalizz
+
+* Ci permettono di considerare fenomeni con distr. non gaussiana
+* modellaz della media della var risposta <- più flessibile, si introduce una "funzione legame" tra media risposta e comb lineare delle var esplicative
+* funz legame <- nella reg. lineare multipla classica è semplicemente l'identità
+
+### esempio: progr di insegnamento
+
+[...] (slide 75)
+
+$ E(Y_i) = \beta_0 + \beta_1*GPA_i + \beta_2*TUCE_i +  $
+
+[...]
+
+## Generalized Linear Model
+
+estensioni dei mod. di r. lineare
+
+* utilizzo forme generali nelle quali ho una "risposta media" => tramite una link function mi ri-collego alla var risposta
+
+In pratica, invece che una $E(Y_i) = [classico-mod - lineare] $ ho una $f(E(Y_i)) = [classico-mod - lineare] $
+
+Risposta non gaussiana => varianza perde di senso => 
+In questo contesto il metodo dei minimi quadrati (per stimare i beta) va esteso. 
+
+Approccio: funz. di verosimiglianza, cercherò i beta che minimizzano la verosimiglianza
+
+## Il modello di regressione logistica (analisi di dati binari)
+
+var risposta  <- mod. di bernoulli 
+
+(potremmo anche aggregare e considerare una distrib binomiale e/o ragionare sulle proporzioni)
+
+si modella la MEDIA della risposta <- una probabilità, si muove nell'intervallo 0/1
+
+=> FUNZ. LEGAME <- $f: [0,1] -> R$
+
+$f(u) = log (u/(1-u))$
+
+( $(u/(1-u))$ <- "odds", quote, diff. tra prob di successo e di insuccesso )
+
+=> $p = f(u)^-1 = e^{log(odds)}/... $
+
+NOTA: potrei avere anche altri tipi di funz. legame
+
+* log log odds
+* quantile di una normale standard (dominio quantile: [0,1])
 
 
+[vedi tab slide 80]
 
 
+## Studio esempio 
+
+[...]
 
 
+## La valutazione della bontà 
 
+[...]
+
+Ricorda dircorsto training set e test set o cross validation
+
+
+## Secondo esempio (slide 85)
+
+Dati su clienti di carte di credito, 10000 individui, variabili:
+
+* default <- quanti sono andati in default
+* student (si o no)
+* income
+* balance <- quanto va a spendere
+
+Ci accorgiamo che solo il 3% è andato in default
+
+
+### Balance come regressore
+
+Da grafico slide, osservizmo che ci ha balance elevato tendenzialmente è più probabile che vada in default, income invece sembra ininfluente
+
+previsore: $log(odds) = \beta_0 + \beta_1*BALANCE+\epsilon$
+
+metodo max verosimiglianza => stimo i beta:
+
+* beta 1 <- basso, ma p-value ci dice che è fortemente probabile sia diverso da 0
+* oss che è positivo (si, l'incremento di balance aumenta prob default )
+
+Usando la rel. inversa, proviamo a stimare la prob di andare in default:
+
+[formula slide 86]
+
+* vediamo come cambia da passaggio da 1000 a 2000 dollari (la prob aumenta parecchio)
+
+
+### Consideraz. solo student
+Proviamo ora a considerare l'influenza del fatt. student
+
+$log(odds) = \beta_0 + \beta_1*STUDENT+\epsilon$
+
+[...]
+
+di nuovo, proviamo a verificare la prob. di studente e non studente... (anche qui si osserva una piccola diff.)
+
+Viene fuori che gli studenti sono meno affidabili di tutti gli altri, ma è proprio così?
+
+### Modello full (e l'effetto di confondimento)
+
+Usiamo tutte tre le covariate
+
+$log(odds) = \beta_0 + \beta_1*INCOME + \beta_2*BALANCE + \beta_3*STUDENT + \epsilon$
+
+* b1 <- molto basso (con p-value alto) => scartabile
+* b2 <- come prima, alta
+* b3 <- negativo 
+
+Come mai? 
+
+I due modelli ci portano a rag. su due contesti diversi 
+
+Qui vado a "fissare" income e balance e poi a valutare studente! => non scatta l'effetto di "confondimento". Studenti e balance tendono ad essere correlati, cioè:
+
+* studenti tendono ad avere balance più alti
+* balance alti tendono ad avere prob. default alta
+* a parità di balance, gli studenti tendono ad essere più affidabili
+
+
+## Es: applichiamo mod di reg logistica sull'esempio delle ammissioni (paradosso di simpson)
+
+Variabili:
+
+* admint <- 2 livelli
+* gender <- 2 livelli
+* department <- 6 livelli
+
+Ricordiamo che apparentemente sembrasse ci fossero meno ammissioni per il genere femminile, ma che A PARITA' DI DIPARTIMENTO, la probabilità fosse circa la stessa (le F tendevano a fare domanda in dipartimenti dove - in generale - fosse più difficile entrare).
+
+Proviamo a costruire un modello full con:
+
+* tutti i main effect
+* tutti gli iteraction effects 
+
+var categoriale => val. di reference + variazioni delle stime attivate da var dummy 
 
 
 # Regression models with discrete responses
 
-## Example: teaching program ##
+## Example: teaching program
 
+
+```{r}
 program <- matrix(c(1,2.66,20,0,0,2,2.89,22,0,0,3,3.28,24,0,0,4,2.92,12,0,
                     0,5,4.00,21,0,1,6,2.86,17,0,0,7,2.76,17,0,0,8,2.87,21,
                     0,0,9,3.03,25,0,0,10,3.92,29,0,1,11,2.63,20,0,0,12,3.32,
@@ -1495,92 +1644,350 @@ program <- matrix(c(1,2.66,20,0,0,2,2.89,22,0,0,3,3.28,24,0,0,4,2.92,12,0,
                     1,31,3.10,21,1,0,32,2.39,19,1,1), nrow=32, byrow=T)
 colnames(program) <- c("OBS","GPA","TUCE","PSI","GRADE")
 program <- as.data.frame(program)
+```
 
+### Tentativo di uso del modello lineare classico
+
+Metto in rel. il val osservato di grade e il valore previsto che mi aspetto
+```{r}
+# modello full
 mod0.lm <- lm(GRADE ~ GPA + TUCE + PSI , data = program)
+
 plot(program$GRADE,fitted(mod0.lm),pch=19,ylim=c(-0.1,1.1),xlab="GRADE",
      ylab="Fitted values")
+
+# (aggiungo linee di riferimento)
 abline(0,0,col='red',lwd=2)
 abline(1,0,col='red',lwd=2)
+```
 
+Rappr. in modo simile la stessa cosa con i box plot:
+
+```{r}
 boxplot(fitted(mod0.lm)~program$GRADE,xlab="GRADE",ylim=c(-0.1,1.1),
         ylab="Fitted values")
 abline(0,0,col='red',lwd=2)
 abline(1,0,col='red',lwd=2)
+```
 
-mod.glm <- glm(GRADE ~ PSI , family = binomial, data = program)
+### Utilizzo di un più appropriato modello logistico
+
+glm <- funz. più generale per i modelli di regressione, molto simile a lm
+
+```{r}
+mod.glm <- glm(GRADE ~ PSI, # stessa sintassi per diversi parametri
+               data = program, 
+               
+               # cosa cambia? con arg. family posso specificare:
+               # - che distrib mi aspetto
+               # - che funz di link
+               # (- che distrib dell'errore)
+               # VEDI DOC
+               family = binomial)
 summary(mod.glm)
+```
 
+Oss: 
+
+classe ogg output <- glm (posso usare summary) => vedo (in ordine):
+
+* che funz ho chiamato
+* che residui ho (ATTENZIONE, non centrano con [...])
+* stimatori, std error e p-value associati (in questo caso ho p-value bassi ma non troppo)
+* R ci ricorda che non abbiamo un param. di dispersione (sigma), è stato fissato a 1
+* valutaz. circa la devianza (nel caso del modello nullo e nel caso di unico regressore)
+* AIC per il modello
+* quanti passi dell'algoritmo sono serviti per raggiungere il max logsimilianza / min devianza
+
+Commento sulle stime (gia visto su slide)
+
+
+Proviamo a ragionare sulla tab a doppia entrata per ricavare odds, log odds e come interpretare le stime di [...]
+
+
+Costruiamo una tabella di contingenza per valori di PSI e val di GRADE:
+```{r}
 conttable <- table(program$PSI, program$GRADE)
 conttable
+
+```
+
+Come prima cosa, calcoliamo i rapp. di probabilità (prob di 1/prob di 0)
+```{r}
+# seconda col / prima colonna
 odds <- conttable[,2]/conttable[,1]
 odds
+```
+
+Risultati: rapp. di probabilità nel caso di esito 0 e di esito 1
+
+
+Se considero il log di odds, mi avvicino a ciò che si usa nella reg. logistica
+```{r}
 log(odds)
+```
+
+"Nel caso uno non partecipi, la prob. di avere ... è inferiore rispetto a quello di averlo"
+
+NOTA:
+* come mi aspettavo, il primo log(odds) coincide con $\beta_0$ stimato
+
+E per il secondo? 
+
+$log(odds) = \beta_0 + \beta_1$
+
+$log(odds) = log(PSI_1) - log(PSI_0) = log(odds) = log(PSI_1/PSI_0)$ <- RIVEDI!!!!
+
+
+(-1.6 + 1.8 = 0.2) 
+
+
+
+```{r}
 OR <- odds[2]/odds[1]
 OR
+```
 
+
+
+```{r}
 mod.glm$coef[1]
 mod.glm$coef[1]+mod.glm$coef[2]
 mod.glm$coef[2]
 log(OR)
 
+```
+
+```{r}
 mod.glm.all <- glm(GRADE ~ PSI + TUCE + GPA, family = binomial, data = program)
 summary(mod.glm.all)
+```
 
+AIC è più piccolo => introdurre questa nuova var. nel modello ha introdotto un miglioramento
+
+
+Plot: 
+* ascisse <- val osservato effettivo
+* ordinate <- val stimati medi (probabilità esito positivo)
+
+```{r}
 plot(program$GRADE,mod.glm.all$fitted.values,pch=19,ylim=c(-0.1,1.1),xlab="GRADE",
      ylab="Fitted values")
 abline(0,0,col='red',lwd=2)
 abline(1,0,col='red',lwd=2)
-
 # the following commands give the same output
 # mod.glm.all$fitted.values
 # exp(predict(mod.glm.all))/(1+exp(predict(mod.glm.all)))
 
-pred <- as.numeric(exp(predict(mod.glm.all))/(1+exp(predict(mod.glm.all)))>0.5)
-table(pred,program$GRADE)
-(18+8)/(18+3+3+8)
+# predict <- si usa anche per ogg. di classe ml
 
+# senza spec. di new data ho come res di default NON è la stima di prob di successo ma la stime del previsore lineare => stima log (odds) 
+# => prendo la stima e la trasformo con funzione inversa del log
+```
+
+Voglio mettere a confronto i val osservati di grade e i val stimati:
+
+* soggetto per soggetto effettuo (manualmente) una previsione
+* metto nella tabella
+
+```{r}
+pred <- as.numeric(
+  exp(predict(mod.glm.all)) / 
+    (1+exp(predict(mod.glm.all))) >0.5 # prevedo 1 quando >0.5, altrimenti 0
+  )
+
+table(pred,program$GRADE)
+
+```
+
+Diagonale \\ <- previsioni corrette
+Diagonale // <- previsioni errate
+
+
+```{r}
+(18+8)/        # previsioni corrette
+  (18+3+3+8)   # tutte le previsioni
+```
+
+NOTA: ricorda che questa valutaz è ottimistica perchè sto valutando il modello sugli stessi dati su cui l'ho calibrato 
+
+=> potrei provare a fare una cross validation:
+```{r}
 library(DAAG)
-CVbinary(mod.glm.all)
+set.seed(11)
+CVbinary(mod.glm.all) # cross. validation di un modello
+```
+
+* Fold <- sottogrupi usati per fare il fit
+* Acc. predittiva senza cv
+* Acc. predittiva con cv
+
+E per fare una CV con tanti fold quanti i dati?
+
+```{r}
+CVbinary(mod.glm.all, nfolds=length(program$GRADE))
+
+```
+
+NOTA: la CV non mi serve tanto per valutare la bontà di un singolo modello fittato MA
+a comparare diversi modelli (che cambiano proprio per struttura)
+
+(e lo faccio andando )
 
 ## Example: credit card ##
 
+
+* Fenomeno d'interesse: default (si/no)
+
+* Potenziali var esplicative:
+ ** Saldo mensile (numerica)
+ ** income(numerica)
+ ** studente (si/no)
+
+```{r}
 library(ISLR)
 library(lattice)
 attach(Default)
-xyplot(income ~ balance, groups=default,data=Default,auto.key=list(columns=2))
+xyplot(income ~ balance, 
+       groups=default,# raggr (e coloro) in base a chi è andato in default e chi no
+       data=Default,auto.key=list(columns=2))
 
+
+xyplot(income ~ balance, 
+       groups=student, # potrei anche raggr per student
+       data=Default,auto.key=list(columns=2))
+```
+
+
+```{r}
 par(mfrow=c(1,2))
 boxplot(balance~default, data=Default,xlab="default",ylab="balance",
         col=c("deepskyblue","magenta"))     
 boxplot(income~default, data=Default,xlab="default",ylab="income",
         col=c("deepskyblue","magenta"))
 par(mfrow=c(1,1))
+```
 
+
+```{r}
 credit1<-glm(default~balance,family="binomial", data=Default)
 summary(credit1)
+```
 
-predict(credit1,data.frame(balance=c(1000,2000)),type = c("response"))
+### Utilizzo di predict per effettuare la previsione
 
+Intercetta <- negativa
+balance <- nonostante sia basso, è comunque positivo e != 0 (vedi p-value molto basso)
+
+NOTA: ricordo che il modello lavora comunque sulla scala della trasformata
+
+Con la funz. predict voglio vedere cosa succede sulla scala della risposta:
+```{r}
+predict(credit1, 
+        
+        # in questo caso effettuiamo la previsione su due valori nuovi
+        data.frame(balance=c(1000,2000)) ,
+        
+        # previsione sulla scala della risp. (così ottengo dirett. la probabilità)
+        type = c("response"))
+
+```
+
+Oss. una variazione considerevole nella variaz. della risposta per i val. 1000 e 2000
+
+### Studend ed "effetto di confounding"
+
+Creiamo un modello che va a considerare la var student: 
+
+```{r}
+
+# (in questo caso aggiungo un vett numerico e lo imposto a 1 quando student == "Yes")
 Default$studentD<-0
 Default$studentD[Default$student=="Yes"]<-1
+
+# (modello)
 credit2<-glm(default~studentD,family="binomial", data=Default)
 summary(credit2)
 
 # the same result can be obtained with the folowing command, using the variable student
-# credit2<-glm(default~student,family="binomial", data=Default)
+# credit2<-glm(default~student,family="binomial", data=Default) 
+```
 
+Come abbiamo visto, considerando solo Student (ignorando tutto il resto) oss. che cresce la prob. di default.
+
+Quanto cresce? come prima facciamo la previsione
+```{r}
 predict(credit2,data.frame(studentD=c(1,0)),type = c("response"))
+```
 
+Oss. aumento di 1% quando studente (da p-value e considerato "significativo")
+
+
+PRoviamo a considerare il modello completo:
+```{r}
 credit3<-glm(default~income+balance+studentD,family="binomial", data=Default)
 summary(credit3)
+```
+Oss: 
 
-## Example: UCB admissions ##
+* income è irrilevante
+* studentD, nel mod. completo, risulta negativo 
 
+studenti -> lv alto di balance -> più alta prob di default
+
+Nel complesso, a parità di balance, gli student si comportano anche un po' meglio dei non-student
+
+## Example: UCB admissions
+
+Ammissioni di M e F:
+
+Dataset <- array a 3 dimensioni UCBAdmissions
+
+Cosa abbiamo? freq. congiunte con rif alle 3 var categoriali
+
+* genere
+* ammesso o no
+* dipartimento
+
+Costruiamo una f. che fa il rapporto tra gli odds 
+(voglio confrontare gli odds delle ammissioni tra maschi e femmine)
+
+### Il problema: 
+
+```{r}
 odds.ratio<-function(x){(x[1,1]*x[2,2])/(x[1,2]*x[2,1])}
-apply(UCBAdmissions,3,odds.ratio)
-margin.table(UCBAdmissions,c(2,1))
-odds.ratio(margin.table(UCBAdmissions,c(2,1)))
 
+# applico la funzione a tutte 6 le tabelle (6 dipartimenti)
+apply(UCBAdmissions,3,odds.ratio)
+```
+
+<- 6 odds ratio per ogni dipartimento. Cosa ci dice:
+
+* A,B,D,F <- a favore per donne
+* C, E <- a favore degli uomini
+* A è l'unico dove la quota è molto forte
+
+
+Ora, vogliamo marginalmente calcolare la tab. riassuntiva: 
+```{r}
+margin.table(UCBAdmissions,c(2,1))
+```
+
+Qui, senza tenere conto di cosa succ. nei dipartimenti, i maschi sembrano favoriti
+
+```{r}
+odds.ratio(margin.table(UCBAdmissions,c(2,1)))
+```
+
+(si vede anche nell'odds ratio, molto alto)
+
+### Andiamo ad approfondire...
+
+Costruiamo un dataset dove, per ogni dipartimento (e sesso), conto ammessi e rifiutati.
+
+Calcolo anche il numero totale di appllications e la f. di ammessi (p).
+
+```{r}
 UCB <- as.data.frame.table(UCBAdmissions["Admitted", , ])
 names(UCB)[3] <- "admit"
 UCB$reject <- as.data.frame.table(UCBAdmissions["Rejected", , ])$Freq
@@ -1588,22 +1995,115 @@ UCB$Gender <- relevel(UCB$Gender, ref="Male")
 UCB$total <- UCB$admit + UCB$reject
 UCB$p <- UCB$admit/UCB$total
 UCB
+```
 
-UCB.glm1 <- glm(p ~ Dept+Gender, family=binomial, data=UCB, weight=total)
+NOTA: che dataset strano.
+
+Dati grezzi <- bernoulliano, mi sarei aspettato un dataset con 1 riga per ogni singola application
+
+In questo caso, però posso permettermi di mantenere la forma compatta. Come? ù
+
+Binomiale <- somma esiti bernoulliane
+
+```{r}
+UCB.glm1 <- glm(p ~ Dept+Gender, # l'ogg. formula viene però espresso in modo un po' particolare
+                family=binomial, # famiglia (la stessa)
+                data=UCB, 
+                weight=total # devo aggiungere il weight per introdurre l'info sul totale
+                )
+
+
 summary(UCB.glm1)
 
 # the same result can be obtained with the command
+# alternativamente mettevo come var d'interesse annesi e rifiutati
 # UCB.glm1 <- glm(cbind(admit, reject) ~ Dept+Gender, family=binomial, data=UCB)
+```
 
+Cosa ottengo?
+
+* intercetta <- maschi che far rif. al dip A
+* DeptB ... DeptF <- tutte le variaz. osservate quando cambio dipartimento
+* [...]
+* e GenderFemale? mi sta ad indicare come varia il log odds se prendo gender F per qualsiasi dipartimento (non ho l'effetto di prima perché ho fatto la consideraz. su ogni dipartimento)
+
+Come valuto su questi dati l'odds ratio maschi femmina? 
+
+
+Odds effetto di essere F:
+```{r}
+exp(UCB.glm1$coefficients[7])
+```
+
+Con inverso, ottengo odds effetto di essere M:
+```{r}
 1/exp(UCB.glm1$coefficients[7])
+```
 
-anova(UCB.glm1, test="Chisq")
 
+### Anova
+
+```{r}
+anova(UCB.glm1, 
+      test="Chisq" # nel caso della reg. logistica, si usa test Chi quadro
+      )
+```
+
+
+"rispetto a mod nullo..."
+
+* se considero dipartimento, spiega molto
+* se considero anche gender, non ho un miglioramento molto significativo! (p. value alto, come il beta di gender=Female)
+
+
+### Stimma del modello di prima invertendo Gender e dept
+
+```{r}
 UCB.glm2 <- glm(p ~ Gender+Dept, family=binomial, data=UCB, weight=total)
 summary(UCB.glm2)
-anova(UCB.glm2, test="Chisq")
+```
 
+Il ris. è lo stesso.
+
+Ma cosa succede se applico anova?
+```{r}
+anova(UCB.glm2, test="Chisq")
+```
+
+Qui, sto considerando un modello SOLO con gender (in confr. al modello nullo)
+
+=> ottengo una "spiegazione rilevante" (ATTENZIONE: non completa, difatti anche aggiungere dept aggiunge bontà)
+
+### Ultimo step: modello completo (anche eff. iterazione)
+
+Costr. modello completo:
+```{r}
 UCB.glm <- glm(p ~ Dept*Gender, family=binomial, data=UCB, weight=total)
 summary(UCB.glm)
+```
 
+Oss.
+* AIC è il più basso (migliore rispetto a tutti gli altri, anche di molto)
+* reference <- maschio, dip A
+* DeptB ... F <- come cambia se un maschio da rif a dip ...
+* GenderFemale <- femmina MA su dip A
+* [...] <- femmina ma dip B
+
+(NOTA: calcolo di beta di Femmina dip B 
+<- devo considerare: intercetta + DeptB + GenderFemale + DeptB:GenderFemale)
+
+Per chiudere, applichiamo anova al mod. completo:
+```{r}
 anova(UCB.glm, test="Chisq")
+```
+
+* rispetto a mod nullo, considerare il dip è una buona cosa
+* rispetto a solo dip, gender NON è rilevante
+* SI OSSERVA CHE L'EFFETTO ITERAZIONE E' MOLTO SIGNIFICATIVO
+
+=> Gender non è rilevante globalmente ("mediamente") MA vale all'interno dei dipartimenti
+
+
+
+
+
