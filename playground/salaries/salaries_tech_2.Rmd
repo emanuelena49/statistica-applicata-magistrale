@@ -249,7 +249,10 @@ salaries_under_500k <- salaries2 %>% filter(tyc <= 500000)
 hist(salaries_under_500k$tyc, 
      breaks=seq(0, 500000, 50000), 
      main="Histogram under 0.95 quantile", xlab="tyc")
-curve(rnorm(1000, mean=mean(salaries_under_500k$tyc), sd=sd(salaries_under_500k$tyc)))
+lines(seq(50000, 500000, 10000), dnorm(seq(50000, 500000, 10000), 
+                                       mean=mean(salaries_under_500k$tyc), 
+                                       sd=sd(salaries_under_500k$tyc)),
+      lwd=2,col='red')
 
 
 # -------------------------
@@ -260,7 +263,10 @@ salaries2$logtyc <- log(salaries2$tyc)
 hist(salaries2$logtyc, 
      main="Histogram of log(tyc)", xlab="log(tyc)")
 rug(salaries2$logtyc, col="lightblue")
-curve(rnorm(1000, (mean=mean(salaries2$logtyc), sd=sd(salaries2$logtyc)))
+lines(seq(800, 1500, 1)/100, dnorm(seq(800, 1500, 1)/100, 
+                                   mean=mean(salaries2$logtyc),
+                                   sd=sd(salaries2$logtyc)),
+      lwd=2,col='red')
 
 
 par(mfrow=c(1,1))
