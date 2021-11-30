@@ -1,0 +1,159 @@
+---
+title: "Salaries in tech industry"
+author: "Emanuele Lena - 142411@uniud"
+date: "30/11/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(lubridate)
+library(dplyr)
+```
+
+
+## Load dataset + overview
+
+Load dataset:
+```{r}
+salaries <- read.csv("Levels_Fyi_Salary_Data.csv")
+head(salaries, 50) 
+
+```
+
+### Number of observations
+
+Number of observations (salaries of single employee):
+```{r}
+nrow(salaries)
+```
+
+### Overview on variables
+
+```{r}
+summary(salaries)
+```
+
+#### Results (variable meaning)
+* I notice two type of variables: the ones related to "what the employee gets" and all others;
+* variables related to what employer gets are: 
+
+"abasesalary", "totalyearlycompensation", "bonus", "stockgrantvalue";
+
+* the other variables include informations like:
+
+** company
+** job position
+** physical location
+** employee experience (in company and globally)
+** education
+** gender
+** race
+
+* each row is also associated to a timestamp (the source date of the data?).
+
+#### Results (variable types and need for tidy)
+
+From summary call, I notice some variables seems "well typed", while others seems just strange and redundant. In detail:
+
+* date is formatted in an unusual format, difficult to handle for ordering 
+  -> I will need to to put it in the usual format "yyyy/mm/dd hh:mm:ss"
+  
+* there are a lot of redundant variables (int to interpretate as booleans?) for race and education
+  -> I remove all them and keep only "Race" and "Education"
+  
+* It's not so much clear the meaning of "otherdetails", let's endept it:
+
+```{r}
+(salaries[!is.na(salaries$otherdetails), "otherdetails"])[1:5]
+```
+
+  -> From what I see, it seems just an optional free text. Let's keep it (but ignore at first).
+  
+* there are some variabiles which rappresent ids (naturally "categorial") but are seen as numerical ("cityid", "dmaid")
+  -> I force them factors to become factors
+  
+* for some numerical variables, it looks I have a lot of zeros that may be used as "NA" (fairly plausible because of the origin of dataset)
+  -> I cannot know, so for now I ignore it
+ 
+ 
+## Data cleaning 
+
+Create a copy of data:
+```{r}
+salaries2 <- salaries
+
+```
+
+### Datet cleaning
+
+Do the datetimes cleaning (using lubridate) + add pure dates and years
+
+```{r}
+# library(lubridate)
+
+# override timestamp using my new format
+salaries2$timestamp <- mdy_hms(salaries$timestamp)
+
+# I suppose I will not need the full datetime, so I parse just the date (and add as new col)
+salaries2$date <- as.Date(substr(salaries2$timestamp, 0, 10))
+
+salaries2$year <- year(salaries2$timestamp)
+
+```
+
+### Remove unused variables
+
+```{r}
+salaries2 <- salaries2 %>% 
+  select(-Race_Asian, -Race_White, -Race_Two_Or_More, -Race_Black, -Race_Hispanic, 
+         -Masters_Degree, -Some_College, -Doctorate_Degree, -Highschool, -Bachelors_Degree)
+```
+
+### Numerical -> factors
+
+```{r}
+salaries2$cityid <- factor(salaries2$cityid)
+salaries2$dmaid <- factor(salaries2$dmaid)
+```
+
+From what I seen during overview, I noticed those factors has no NA value, but they have zeros. Let's endeep that:
+
+```{r}
+length(salaries2[salaries2$cityid==0, "cityid"]) 
+length(salaries2[salaries2$dmaid==0, "dmaid"]) 
+
+```
+
+In "cityid" I have only two zeros, so let's assume they are valid ids.
+
+In "dmaid" I have lots of them. For now let's keep them as valid values, but remember it for future.
+
+### Clean dataset structure
+
+```{r}
+summary(salaries2)
+```
+
+(Evidently, someone in Big Tech companies identifies sexually as a senior software engineer)
+
+```{r}
+table(salaries2$gender) %>% as.data.frame()
+```
+
+## An overview on total year compensation
+
+Total year compensation rappresent the total pay an employee recevies in a year. It will be mine main focus for the next analysis. The total compensation is the sum of all forms of payments, like:
+* the regular salary
+* bonuses
+* stock options
+* etc.
+
+
+
+
+
