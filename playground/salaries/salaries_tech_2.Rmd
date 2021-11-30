@@ -42,7 +42,7 @@ summary(salaries)
 * I notice two type of variables: the ones related to "what the employee gets" and all others;
 * variables related to what employer gets are: 
 
-"abasesalary", "totalyearlycompensation", "bonus", "stockgrantvalue";
+"basesalary", "totalyearlycompensation", "bonus", "stockgrantvalue";
 
 * the other variables include informations like:
 
@@ -152,6 +152,123 @@ Total year compensation rappresent the total pay an employee recevies in a year.
 * bonuses
 * stock options
 * etc.
+
+This variable will be the main response variable I wanna study and predict.
+
+### Checksum propery 
+
+According to the meaning of TYC, I expect the sum of the three variables "basesalary", "bonus", "stockgrantvalue" equals to "totalyearlycompensation". 
+
+On the other side, as seen in the initial quick table print, I have a lot of "zeros" in the three hypotetic variables (may they be NA?). 
+
+Let's do a quick check calculating a checksum on each rows (calculate difference tyc - this and check if it is != 0)
+
+```{r}
+diffs <- with(salaries2, totalyearlycompensation - basesalary - bonus - stockgrantvalue)
+
+diffs[1:44]
+
+table(diffs == 0)
+
+```
+
+Let's focus on rows where all secondary values are != 0:
+
+```{r}
+salaries_3v_all_not_0 <- salaries2 %>% filter(basesalary!=0 & bonus!=0 & stockgrantvalue!=0)
+
+diffs2 <- with(salaries_3v_all_not_0, totalyearlycompensation - basesalary - bonus - stockgrantvalue)
+
+diffs2[1:44]
+
+table(diffs2 == 0)
+
+```
+
+
+Remember nrows:
+
+```{r}
+nrow(salaries2)
+```
+
+#### Results
+
+In a decent amount of rows (50198/62642), the checksum confirms the theory but not all data are uniform.
+
+### Total year compensation statistics
+
+Let's get a quick view on t.y.c.
+
+```{r}
+summary(salaries2$totalyearlycompensation)
+```
+
+
+### Total year compensation density & frequency distribution
+
+Let's endept t.y.c. density and make some hypotesis on an eventual appropriate model.
+
+```{r}
+# rename "totalyearlycompensation" as "tyc" as shortcut
+salaries2$tyc <- salaries2$totalyearlycompensation
+```
+
+
+```{r}
+hist(salaries2$tyc, breaks=seq(0, 5000000, 50000))
+rug(salaries2$tyc, col="lightblue")
+```
+
+I notice t.y.c. is clerly not a Gauss distribution, because:
+
+* there is a clear form of assimmetry (as already seen from statistics)
+* there are some really extreme values on right side
+* most of the data seems concentrated on the left side of curve, but right tail is still somewhat heavy
+
+Let's try two different approaches to endept the phenom: 
+
+1) cut out all values over a certain value (let's take the 0.95 quantile)
+
+```{r}
+quantile(salaries2$tyc, 0.95)
+```
+
+2) keep all values but analyze log(tyc) instead of tyc.
+
+In both cases I plot a dnorm curve and an adaptive curve over the histogram to look for normal distribution hints.
+
+```{r}
+par(mfrow=c(1,2))
+
+# -------------------------
+# Hist filtered on obs. <= 0.95 quantile
+
+salaries_under_500k <- salaries2 %>% filter(tyc <= 500000)
+
+hist(salaries_under_500k$tyc, 
+     breaks=seq(0, 500000, 50000), 
+     main="Histogram under 0.95 quantile", xlab="tyc")
+curve(rnorm(1000, mean=mean(salaries_under_500k$tyc), sd=sd(salaries_under_500k$tyc)))
+
+
+# -------------------------
+# Log scale hist
+
+salaries2$logtyc <- log(salaries2$tyc)
+
+hist(salaries2$logtyc, 
+     main="Histogram of log(tyc)", xlab="log(tyc)")
+rug(salaries2$logtyc, col="lightblue")
+curve(rnorm(1000, (mean=mean(salaries2$logtyc), sd=sd(salaries2$logtyc)))
+
+
+par(mfrow=c(1,1))
+```
+
+
+
+#### Results
 
 
 
