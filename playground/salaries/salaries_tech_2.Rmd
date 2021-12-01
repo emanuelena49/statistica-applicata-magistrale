@@ -205,7 +205,7 @@ summary(salaries2$totalyearlycompensation)
 ```
 
 
-### Total year compensation density & frequency distribution
+### Total year compensation density and Gauss model hypotesis
 
 Let's endept t.y.c. density and make some hypotesis on an eventual appropriate model.
 
@@ -239,6 +239,20 @@ quantile(salaries2$tyc, 0.95)
 In both cases I plot a dnorm curve and an adaptive curve over the histogram to look for normal distribution hints.
 
 ```{r}
+
+gaussOverData <- function(data, xDensity=5000, color="red") {
+  
+  x <- seq(min(data), max(data), by=(max(data)-min(data))/xDensity)
+  y <- dnorm(x, mean(data), sd(data))
+  
+  return(lines(x, y, lwd=2, col=color))
+}
+
+
+```
+
+
+```{r}
 par(mfrow=c(1,2))
 
 # -------------------------
@@ -248,35 +262,97 @@ salaries_under_500k <- salaries2 %>% filter(tyc <= 500000)
 
 hist(salaries_under_500k$tyc, 
      breaks=seq(0, 500000, 50000), 
+     freq = F, col="lightgray",  
      main="Histogram under 0.95 quantile", xlab="tyc")
-lines(seq(50000, 500000, 10000), dnorm(seq(50000, 500000, 10000), 
-                                       mean=mean(salaries_under_500k$tyc), 
-                                       sd=sd(salaries_under_500k$tyc)),
-      lwd=2,col='red')
-
+gaussOverData(salaries_under_500k$tyc)
+lines(density(salaries_under_500k$tyc))
 
 # -------------------------
 # Log scale hist
 
 salaries2$logtyc <- log(salaries2$tyc)
 
-hist(salaries2$logtyc, 
+hist(salaries2$logtyc, freq = F, col="lightgray", 
      main="Histogram of log(tyc)", xlab="log(tyc)")
 rug(salaries2$logtyc, col="lightblue")
-lines(seq(800, 1500, 1)/100, dnorm(seq(800, 1500, 1)/100, 
-                                   mean=mean(salaries2$logtyc),
-                                   sd=sd(salaries2$logtyc)),
-      lwd=2,col='red')
-
+gaussOverData(salaries2$logtyc)
+lines(density(salaries2$logtyc))
 
 par(mfrow=c(1,1))
 ```
 
 
+#### Results
+
+From what I see, the whole data density is fairly different from what I expect from a Gauss model. Removing the largest 5% of data, things seems better, but:
+
+* i still observe an apparent left assymmetry;
+* i still have a too much heavy right tail. 
+
+Trasforming the whole data in a log scale, makes thing looks slighly better, even if not either this looks like a normal distribution.
+
+Let's validate those considerations first with a quantile analysis, then using some proper mathematical test.
+
+### Quantiles & outlyers
+
+Let's start with a quick overview of quartiles and outlyers using boxplots:
+
+```{r}
+par(mfrow=c(1,2))
+
+boxplot(salaries2$tyc, ylab="tyc")
+
+boxplot(salaries2$logtyc, ylab="log(tyc)")
+
+par(mfrow=c(1,1))
+
+```
+
 
 #### Results
 
+In both boxplots, I notice a huge amount of outlyers, but while in the first one they are onesided, in the second one this seems quite symmetric.
+
+Let's endept with a view of quantiles (compared with the one of a normal distribution).
+
+```{r}
+par(mfrow=c(1,3))
+
+qqnorm(salaries2$tyc, main = "Normal Q-Q Plot (tyc)")
+qqline(salaries2$tyc,col='red',lwd=2)
+
+qqnorm(salaries_under_500k$tyc, main = "Normal Q-Q Plot (tyc<=500k)")
+qqline(salaries_under_500k$tyc,col='red',lwd=2)
+
+qqnorm(salaries2$logtyc, main = "Normal Q-Q Plot (log tyc)")
+qqline(salaries2$logtyc,col='red',lwd=2)
 
 
+par(mfrow=c(1,1))
 
+```
+
+### Normality tests
+
+[...]
+
+
+## Overview on explicative variables
+
+### Titles and levels
+
+```{r}
+summary(salaries2$title)
+```
+
+```{r}
+summary(salaries2$level) %>% as.data.frame()
+```
+
+```{r}
+
+ggplot(table(salaries2$title) %>% as.data.frame(col.names=c("title", "f")), 
+                aes(x=reorder(title, -f), f)) + geom_bar(stat ="identity")
+
+```
 

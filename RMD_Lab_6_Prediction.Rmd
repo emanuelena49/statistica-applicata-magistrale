@@ -340,24 +340,38 @@ OSs
 * no diff genere
 * influenza strana per stato civile
 * la cintura di sicurezza ha una chiara influenza
-* cls. età influente
+* età (ragg in classi) è sembra rilevante
 
-
-
+Confrontiamo le f. di densità per quando sono rapp da avvocato e quando no:
 ```{r}
 library(lattice)
 densityplot(~log(LOSS), group=ATTORNEY, data=autobi, lwd=2,
        xlab="log(LOSS)",  plot.points=FALSE, auto.key=list(columns=2))
 ```
 
+Oss:
+
+* ho usato metodo del nucleo
+* ho usato densityplot di LATTICE per ottenere res migliore graficamente
+* oss che il fatto che ci sia stato un avvocato, sposta la curva di densità a dx e la rende anche più stretta
 
 ### first multiple linear regression model for log(LOSS)
+
+Costruiamo mod di regressione di tipo gaussiano. Prendiamo come var. ATTORNEY (rapp da avvocato o no) + la classe d'età
 
 ```{r}
 mod <- lm( log(LOSS) ~ ATTORNEY + CLMAGE, autobi)
 summary(mod)
 ```
 
+OSS:
+* 
+* ...
+* sono state escluse 189 oss per mancanza di una var o dell'altra
+
+
+
+Facciamo diagnostica:
 
 ```{r}
 par(mfrow=c(2,2), pty="s", mar=c(3,2,3,2))
@@ -365,22 +379,40 @@ plot(mod)
 par(mfrow=c(1,1))
 ```
 
+* 
+* qqplot non è male
+* varianza dell'errore è abbastanza costante
+* per le anomalie, si notano alcuni dati che andrebbero ri-valutati
+
 
 ### prediction intervals
+
+Proviamo ad effettuare qualche previsione:
 
 ```{r}
 ci_yes<-predict(mod, newdata=data.frame(ATTORNEY="yes",CLMAGE=30,SEATBELT="yes"), 
                 interval="confidence")
 ci_yes # age=30 and attorney=yes, log scale
 exp(ci_yes) # age=30 and attorney=yes, original scale
+
+
+
 ci_no<-predict(mod, newdata=data.frame(ATTORNEY="no",CLMAGE=30,SEATBELT="yes"), 
                interval="confidence")
 ci_no # age=30 and attorney=no, log scale
 exp(ci_no) # age=30 and attorney=no, original scale
 ```
 
+NOTA: la copertura della trasformata non è proprio del 95%. 
+
+Le procedure di cambio scala non sono proprio "invarianti" => ho giusto un'approssimazione. 
+
 
 ### second multiple linear regression model for log(LOSS)
+
+Miglioriamo il modello:
+* agg quadrato età
+* agg cintura di sicurezza
 
 ```{r}
 mod2s <- lm(log(LOSS) ~ATTORNEY + CLMAGE + I(CLMAGE^2) + SEATBELT, 
@@ -393,21 +425,33 @@ AIC(mod)
 
 ### cross-validation and test MSE
 
+boot <- ...
+
 ```{r}
 library(boot)
+
 autobi_complete<-autobi[complete.cases(autobi),] # data frame with complete observations
+
 mod_bis <- glm(log(LOSS) ~ATTORNEY + CLMAGE, data=autobi_complete)
 mod2s_bis <- glm(log(LOSS) ~ATTORNEY + CLMAGE + I(CLMAGE^2) + SEATBELT, 
                  data=autobi_complete)
+
+```
+
+```{r}
 sum(resid(mod_bis)^2)/length(autobi_complete[,1]) # training MSE for mod_bis
 cv.glm(autobi_complete,mod_bis)$delta[2] # cv estimate test MSE for mod_bis
+```
+
+```{r}
 sum(resid(mod2s_bis)^2)/length(autobi_complete[,1]) # training MSE for mod2s_bis
 cv.glm(autobi_complete,mod2s_bis)$delta[2] # cv estimate test MSE for mod2s_bis
 ```
 
 
-# confidence and prediction intervals
+### confidence and prediction intervals
 
+```{r}
 intc <- predict(mod2s, newdata=data.frame(ATTORNEY="yes",CLMAGE=30,
                 SEATBELT="yes"), interval="confidence")
 intc # log scale
@@ -416,24 +460,47 @@ intp <- predict(mod2s, newdata=data.frame(ATTORNEY="yes",CLMAGE=30,
                 SEATBELT="yes"), interval="prediction")
 intp # log scale
 exp(intp) # original scale
+```
 
+
+```{r}
 intp <- predict(mod2s, newdata=data.frame(ATTORNEY="yes",CLMAGE=30,
-                SEATBELT="yes"), interval="prediction", pred.var=1.4122)
+                SEATBELT="yes"), interval="prediction", 
+                
+                # posso indicare la stima di sigma^2 
+                # (in questo caso uso il val del testMSE, che è certamente 
+                # più grande => l'intervallo di previsione sarà più ampio)
+                pred.var=1.4122 
+                )
 intp # log scale
 exp(intp) # original scale
+```
 
-age <- seq(18, 80, l=20)
+Vediamo come cambia l'intervallo di previsione cambiando l'età: 
+```{r}
+age <- seq(18, 80, l=20) # prendo 20 età tra ...
+
 matout <- matrix(0, nrow=20, ncol=3)
 for(i in 1:length(age))
 matout[i,] <- predict(mod2s, newdata=data.frame(ATTORNEY="yes",CLMAGE=age[i],
                 SEATBELT="yes"), interval="prediction")
+matout
+```
 
+
+```{r}
 par(mfrow=c(1,2), pty="s")
+
+# valori predetti sia come linea che come punti
 plot(age, matout[,1], pch=16, type="l", ylim=range(matout), xlab="CLMAGE", 
      ylab="log(LOSS)")
 points(age, matout[,1], pch=16)
+
+# bande di previsione inferiore e superiore
 lines(age, matout[,2], col=2, lwd=2)
 lines(age, matout[,3], col=2, lwd=2)
+
+# (stessa op su scala esponenziale)
 abline(v=30)
 plot(age, exp(matout[,1]), pch=16, type="l", ylim=range(exp(matout)), 
      xlab="CLMAGE", ylab="LOSS")
@@ -443,12 +510,68 @@ lines(age, exp(matout[,3]), col=2, lwd=2)
 abline(v=30)
 
 
-### Example: credit scoring ###
 
-# Data set given in the book "Regression: Models, Methods and Applications" by L. Fahrmeir, Th. Kneib, 
-# S. Lang and B. Marx and saved in the .txt file "Scoring.txt" in the working directory
+par(mfrow=c(1,1))
 
-Scoring <- read.table(file="Scoring.txt",header=TRUE)
+```
+
+# Teoria 01/12/2021 : Previsioni su var categoriali
+
+"procedure di classificazione" = "previsioni su var. categoriali" (a 2 o + lv)
+
+In cosa si concretizza? 
+
+Stima della prob. che si verifichi un tipo di oss. piuttosto che un altro
+=> stimo prob eventi, in base a p. stimate scelgo
+
+
+
+c'è un analogo dell'MSE per le categoriali? 
+
+Si posso effettuare previsioni e confrontarle con i val. osservati => posso calcolare un tasso d'errore
+
+$trainingER = ...$
+
+$testER = ... $
+
+val. atteso <- probabilità  di avere una predizione diversa da quella attesa
+
+=> ci poniamo l'obiettivo di minimizzarla 
+
+## [...] (slide 38)
+
+[...]
+
+[RIVEDERE!!!!]
+
+Nella realtà non conosco queste probabilità. 
+
+Potrei stimarle con regr. logistca
+
+
+## Example: credit scoring ###
+
+Data set given in the book "Regression: Models, Methods and Applications" by L. Fahrmeir, Th. Kneib, 
+S. Lang and B. Marx and saved in the .txt file "Scoring.txt" in the working directory
+
+PREMESSA: valutaz. "solvibilità" di una persona che chiede un prestito (sarà in grado di ritornare quanto ricevuto oppure no?). => 
+
+var interessa categoriale <- pagherà o non pagherà il prestito? (1 o 0)
+
+var (ipoteticamente) esplicative (categoriali?):
+
+* acc1 <- presenza cc o no
+* acc2 <- comportamento positivo o negativo nel conto
+
+<- raggruppati in categoriale a 3 lv
+
+* moral
+* intuse
+* ...
+
+
+```{r}
+Scoring <- read.table(file="data/Scoring.txt",header=TRUE)
 # acc1=1 (no runnig account) acc1=0 (good or bad running account)
 # acc2=1 (good running account) acc2=0 (no or bad running account)
 Scoring$account <- 1 - Scoring$acc1 + Scoring$acc2
@@ -457,9 +580,14 @@ Scoring$moral <- factor(Scoring$moral)
 Scoring$intuse <- factor(Scoring$intuse)
 Scoring$y <- factor(Scoring$y)
 str(Scoring)
+```
 
-# exploratory data analysis
 
+### exploratory data analysis
+
+Analiz. singolarmente le variabili (barplot e istogramma)
+
+```{r}
 par(mfrow=c(2,3), pty="s")
 par(cex.axis=1.3,cex.lab=1.3,mar=c(3.5,2,1.5,1))
 with(Scoring, barplot(table(y),main="y",col="lightblue"))
@@ -469,28 +597,45 @@ with(Scoring, barplot(table(intuse),main="intuse",col="lightblue"))
 with(Scoring, hist.scott(duration,main="duration", xlab="", col="lightblue") )
 with(Scoring, hist.scott(amount,main="amount", xlab="", col="lightblue") )
 par(mfrow=c(1,1))
+```
 
+
+```{r}
 layout(matrix(c(1:5,5),byrow=TRUE,nrow=2))
 par(cex.axis=1.3,cex.lab=1.3,mar=c(3.5,2,1.5,1))
 with(Scoring, boxplot(duration~y, main="duration", col="lightblue"))
 with(Scoring, boxplot(amount~y, main="amount", col="lightblue"))
+
+
 with(Scoring, plot(table(y, account),main=""))
 with(Scoring, plot(table(y, moral),main=""))
 with(Scoring, plot(table(y, intuse),main=""))
 par(mfrow=c(1,1))
+```
 
-# multiple logistic regression model
+* nei primi casi uso classico boxplot per categorie
+* nel secondo, visualizzo la "ripartizione" delle prob. congiunte
 
+NOTA: come per prima, posso ragionare in ottica inferenziale oppure più in termini di predizione
+
+### multiple logistic regression model
+
+```{r}
 mod1 <- glm(y~account+duration+amount+moral+intuse, family=binomial, data=Scoring)
 prediction1 <- ifelse(predict(mod1, Scoring, type='response') > 0.5, 1, 0)
 observed <- Scoring$y
+```
 
-# confusion matrix and prediction diagnostic
 
+### confusion matrix and prediction diagnostic
+
+```{r}
 confusion <- table(prediction1, observed)
 colnames(confusion) <- c("creditworthy","not creditworthy")
 rownames(confusion) <- c("creditworthy","not creditworthy")
 confusion
+```
+
 
 library(crossval)
 cm <- confusionMatrix(Scoring$y, prediction1, negative="0")
