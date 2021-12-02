@@ -521,32 +521,147 @@ par(mfrow=c(1,1))
 
 In cosa si concretizza? 
 
-Stima della prob. che si verifichi un tipo di oss. piuttosto che un altro
+Stima della prob. oss. appartenga ad una categoria piuttosto che un'altra
 => stimo prob eventi, in base a p. stimate scelgo
 
-
+## Il tasso d'errore
 
 c'è un analogo dell'MSE per le categoriali? 
 
-Si posso effettuare previsioni e confrontarle con i val. osservati => posso calcolare un tasso d'errore
+Si posso effettuare previsioni e confrontarle con i val. osservati 
+=> posso calcolare un tasso d'errore (e pormi l'obb. di minimizzarlo)
 
-$trainingER = ...$
+$trainingER = 1/n *\sum^n_{i=1} I(y_i!=y_i cappello)$
 
-$testER = ... $
+$I(y_i!=y_i cappello) = 1$ se la cond. è vera, altrimenti 0
+
+Analogamente, posso calcolare lo stesso tasso per il test set: $testER = ... $
+
+ER <- stimatore dell'errore di predizione 
+
+$E[I(Y_0!=Y_0capp.)]=P(Y_0!=Y_0capp.)$ (media tasso errore = prob. errore)
 
 val. atteso <- probabilità  di avere una predizione diversa da quella attesa
 
-=> ci poniamo l'obiettivo di minimizzarla 
+Il classificatore deve minimizzare l'err. di prediz. => il tasso d'erroe
 
-## [...] (slide 38)
+## Il classificatore di Bayes 
 
-[...]
+miglior classificatore (teorico) possibile. Assegna ad un'osserv. ($x_0$)
 
-[RIVEDERE!!!!]
+* la classe 1  se la prob. condizionale $P(Y_0 = 1 | X_0 = x_0) > P(Y_0 = 0 | X_0 = x_0)$
+* la classe 0 altrimenti
 
-Nella realtà non conosco queste probabilità. 
+problema: la prob. $P(Y_0 = 1 | X_0 = x_0)$ è solo un valore teorico, non lo conosciamo 
 
-Potrei stimarle con regr. logistca
+=> serve stimatore, dalla bondtà dello stimatore dipende la bontà del classificatore
+
+### Il Bayes decision bnoundaries
+
+Prendiamo un set di osservazioni, costituito da:
+
+* due var. numeriche $X_1, X_2$ (predittori)
+* una var. categoriale (2 lv) <- la var. per la quale sono interessato a classificare
+
+Facciamo un plot dei punti su un piano, coloriamo di rosso e nero i pt. a seconda della classe.
+
+conosco la prob. condizionale => per ogni pt del piano posso determinate una prob di appartenza ad una cls piuttosto che l'altra
+
+Bayes decision boundary <- l'insieme dei punti del piano dove questa prob. è =0.5
+
+(slide 38)
+
+## Utilizzo del regressore logistico per la classificaz. 
+
+mod. di reg. logistico <- può essere uno stimatore della p. condizionata di appart. ad una classe
+
+$P(Y=1|X=x) = exp(x_i^T*\beta)/(1 + exp(x_i^T*\beta))$
+
+Decision boundary stimato <- retta $ x_i^T*\beta=0 $
+
+Efficace fintanto che il d.b. è vagamente lineare
+
+### Linear Discrimination Analysis (LDA)
+
+utilizzo diretto della reg. lineare su risposte categoriale <- eff. simile a mod logistico (difetto: può dare prob. fuori dall'int $[0,1]$)
+
+Potrei però pensare ad un uso "indiretto":
+* parto dal modello del prediittore
+* ottengo la prob. condizionale di interesse $ P(Y_i=y_i|X_i=x_i)$ con t. di bayes
+
+Esempio:
+
+* var. risposta Y, $S>=2$ livelli (non ordinati) $y_1, ..., y_s$
+* X <- vettore di predittori continui (dim p)
+* $f_s(x)=f(x|Y=y_s)$ <- funzione di densità dei predittori lineari per la cat. s
+* $\pi_s = P(T=y_s)$ <- prob. marginale per la cat. s
+
+
+(per la categoria s, posso computare un certo val stimato usando un mod. lineare costruito su X)
+
+Per t. di Bayes:
+
+$ P(Y=y_s|X=x) = \pi_s*f_s(x) / \sum_{r=1}^S(\pi_r*f_r(x)) $
+
+### LDA concreto
+
+Problema: non conosco le funzioni di densità $f_s(x)$
+
+<- usiamo una distrib. gaussiana $N(\mu_s, \sigma^2)$
+
+* media <- stimo con media delle oss. $x_i$ appartenenti alla classe $y_s$
+* varianza <- varianza complessiva di x (calcolata usando la media specifica per ongi classe e S gradi di libertà)
+
+E le $\pi_s$? $n_s/n$ (percent. di oss. appartenenti alla classe s del training set)
+
+=> LDA <- assegna la classe per la quale questo valore è più alto: 
+
+$\delta_s(x) = x * \mu_s/\sigma^2-\mu_s^2/(2\sigma^2)+log(\pi_s)$
+
+(ovviamente per $\mu_s, \sigma^2, \pi_s$ si usano i risp. stimatori cappello)
+
+NOTE VARIE: 
+* Se per due categorie ho lo stesso valore? uso dec. boundary lineare classico
+* LDA e reg. logistica <- simili, ma LDA è più "stabile"
+* LDA assume la continutià dei predittori (con stessa media per ogni classe e varianza comune) => non va bene se anche i predittori sono categoriali
+
+* per set grandi (e se le assunzioni sono tutte soddisfatte) LDA approssima bene lo la regola di Bayes teorica
+
+
+### Quadratic Discriminant Analysis (QDA)
+
+se rilassiamo ipotesi di varianza costante, possiamo pensare a determinare d.b. quadratici.
+
+Non è molto usata e richiede set molto grandi.
+
+## K-Nearest Neighbors (kNN)
+
+Procedura alternativa, moolto semplice e molto usata. 
+
+Data un'oss $x_0$, per la classif. osservo i $k>0$ punti (del training set) più vicini. 
+
+Stimo $ P(Y_i=y_i|X_i=x_i)$ con la media di $y_i$ per i punti (con i vari $y_i$ che valgono 1 se i punti appartengono alla classe, altrimenti 0).
+
+Ovviamente, scelta di k influisce pesantemente:
+* $k=1$ <- mi baso solo sul punto più vicino
+* ...
+* $k=n$ <- uso direttamente la probabilità marginale ingorando i regressori
+
+In base alla scelta di k ottengo decision boundaries più o meno "fittati" sui dati. 
+
+Es. $k=10$ <- classif. elastica, $k=50$ <- classif. più rigida, più vicina al db lineare della reg. logistica
+
+NOTE:
+* kNN efficace quando ho predit. numerici e il db è chiaramente non lineare
+* per utilizzare kNN con predit categoriali, devo "definire il concetto di vicinanza"
+* potrei sperimentare diversi k e scegliere quello che minimizza il rateo di classif errate (in base alle esigenze [...]) <- per effettuare la scelta posso sia applicare cross-validation che usare dati di test a parte (per evitare di essere troppo ottimistici)
+
+* k piccoli <- previsioni molto suscettibili a "rumore dei dati"
+
+* (bias-variance trade off [...])
+
+* potenzialmente, potrei usare kNN anche per problemi di regressione (quando voglio approssimare una risposta continua)
+
 
 
 ## Example: credit scoring ###
