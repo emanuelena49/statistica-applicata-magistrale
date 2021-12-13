@@ -29,7 +29,8 @@ head(salaries, 50)
 
 Number of observations (salaries of single employee):
 ```{r}
-nrow(salaries)
+dsSize <- nrow(salaries)
+dsSize
 ```
 
 ### Overview on variables
@@ -332,27 +333,163 @@ par(mfrow=c(1,1))
 
 ```
 
+#### Results
+
+Tyc is far from being Gaussian. 
+
+For TYC under 500k and log(TYC) instead I observe sample quantiles coincide for expected quantiles around median values, but at the same time tails are farily distant.
+
+log(TYC) seems sligly more symmetric.
+
 ### Normality tests
 
 [...]
 
 
+
 ## Overview on explicative variables
+
+Before starting the correlation alaysis, let's make a quick (graphical and numerical) overview of all the potential explicative variables. In detail I will analyze:
+
+1) Experience and in-company experience
+2) titles and levels
+3) education
+4) gender and race
+
+### Experience and in-company experience
+
+```{r}
+summary(salaries2$yearsofexperience)
+summary(salaries2$yearsatcompany)
+```
+
+
+```{r}
+par(mfrow=c(1,2))
+hist(salaries2$yearsofexperience, freq = F, main="Years of experience")
+hist(salaries2$yearsatcompany, freq = F, main="Years in company")
+par(mfrow=c(1,1))
+
+```
+
 
 ### Titles and levels
 
 ```{r}
-summary(salaries2$title)
+table(salaries2$title) %>% 
+  as.data.frame() %>% 
+  mutate(RelFreq=Freq/dsSize) %>% 
+  arrange(-Freq) 
 ```
 
 ```{r}
-summary(salaries2$level) %>% as.data.frame()
+table(salaries2$level) %>% 
+  as.data.frame() %>% 
+  mutate(RelFreq=Freq/dsSize) %>% 
+  arrange(-Freq)
 ```
 
 ```{r}
+par(mfrow=c(2,1))
 
-ggplot(table(salaries2$title) %>% as.data.frame(col.names=c("title", "f")), 
-                aes(x=reorder(title, -f), f)) + geom_bar(stat ="identity")
+barplot(table(salaries2$title)/dsSize, main="Job titles", las=2)
+
+par(mfrow=c(1,1))
+
 
 ```
+
+```{r}
+sum(is.na(salaries2$title))/dsSize
+sum(is.na(salaries2$level))/dsSize
+
+```
+
+
+#### Results
+
+* A huge percantege of employee are Software Engeneers, all other titles appears <10% of times;
+* there are really A LOT of different levels to consieder;
+* almost no data has NA value.
+
+### Education
+
+```{r}
+table(salaries2$Education) %>% 
+  as.data.frame() %>% 
+  mutate(RelFreq=Freq/dsSize) %>% 
+  arrange(-Freq)
+```
+
+```{r}
+par(mfrow=c(2,1))
+
+barplot(table(salaries2$Education)/dsSize, main="Job titles", las=2)
+
+par(mfrow=c(1,1))
+
+```
+
+```{r}
+sum(is.na(salaries2$Education))/dsSize
+
+```
+
+
+#### Results
+
+* Most of employee (>40%) have a Master's Degree or a Barchelor's Degree;
+* freq. of PHD is still higher than ones who have only High Scool or Some College; 
+* for more than 50% of observation Education is not inserted.
+
+### Gender and race
+
+```{r}
+table(salaries2$gender)
+table(salaries2$gender)/dsSize * 100 
+
+```
+
+
+```{r}
+table(salaries2$Race)
+table(salaries2$Race)/dsSize * 100 
+
+```
+
+```{r}
+sum(is.na(salaries2$gender))/dsSize
+sum(is.na(salaries2$Race))/dsSize
+
+```
+
+Percantages without NAs
+```{r}
+no_na_gender_ds <- filter(salaries2, !is.na(gender))
+no_na_race_ds <- filter(salaries2, !is.na(Race))
+
+                          
+table(no_na_gender_ds$gender)/nrow(no_na_gender_ds) * 100
+table(no_na_race_ds$Race)/nrow(no_na_race_ds) * 100 
+```
+
+
+#### Results
+
+* I have a lot of NA for both variables (expecially race);
+* from what I can see, most of people are males (82% of not NA obs.);
+* the most frequent race in Asian, Followed by White.
+
+## Multi-variable analysis
+
+
+
+
+
+
+
+
+
+
+
 

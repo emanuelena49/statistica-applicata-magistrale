@@ -571,7 +571,7 @@ Bayes decision boundary <- l'insieme dei punti del piano dove questa prob. è =0
 
 (slide 38)
 
-## Utilizzo del regressore logistico per la classificaz. 
+## Utilizzo del regressore logistico per la classificaz.  
 
 mod. di reg. logistico <- può essere uno stimatore della p. condizionata di appart. ad una classe
 
@@ -581,7 +581,7 @@ Decision boundary stimato <- retta $ x_i^T*\beta=0 $
 
 Efficace fintanto che il d.b. è vagamente lineare
 
-### Linear Discrimination Analysis (LDA)
+## Linear Discrimination Analysis (LDA)
 
 utilizzo diretto della reg. lineare su risposte categoriale <- eff. simile a mod logistico (difetto: può dare prob. fuori dall'int $[0,1]$)
 
@@ -593,15 +593,15 @@ Esempio:
 
 * var. risposta Y, $S>=2$ livelli (non ordinati) $y_1, ..., y_s$
 * X <- vettore di predittori continui (dim p)
-* $f_s(x)=f(x|Y=y_s)$ <- funzione di densità dei predittori lineari per la cat. s
+* $f_s(x)=f(x|Y=y_s)$ <- funzione di densità dei predittori lineari per la cat. s (la conosco)
 * $\pi_s = P(T=y_s)$ <- prob. marginale per la cat. s
 
+(per la categoria s, posso computare un certo val stimato - la media della gaussiana - usando un mod. lineare costruito su X)
 
-(per la categoria s, posso computare un certo val stimato usando un mod. lineare costruito su X)
-
-Per t. di Bayes:
+Per t. di Bayes, posso fare calcolo inverso:
 
 $ P(Y=y_s|X=x) = \pi_s*f_s(x) / \sum_{r=1}^S(\pi_r*f_r(x)) $
+
 
 ### LDA concreto
 
@@ -609,7 +609,7 @@ Problema: non conosco le funzioni di densità $f_s(x)$
 
 <- usiamo una distrib. gaussiana $N(\mu_s, \sigma^2)$
 
-* media <- stimo con media delle oss. $x_i$ appartenenti alla classe $y_s$
+* media <- stimo con media delle oss. $x_i$ appartenenti alla classe $y_s$ (varia di classe in classe)
 * varianza <- varianza complessiva di x (calcolata usando la media specifica per ongi classe e S gradi di libertà)
 
 E le $\pi_s$? $n_s/n$ (percent. di oss. appartenenti alla classe s del training set)
@@ -626,7 +626,6 @@ NOTE VARIE:
 * LDA assume la continutià dei predittori (con stessa media per ogni classe e varianza comune) => non va bene se anche i predittori sono categoriali
 
 * per set grandi (e se le assunzioni sono tutte soddisfatte) LDA approssima bene lo la regola di Bayes teorica
-
 
 ### Quadratic Discriminant Analysis (QDA)
 
@@ -663,6 +662,80 @@ NOTE:
 * potenzialmente, potrei usare kNN anche per problemi di regressione (quando voglio approssimare una risposta continua)
 
 
+# Teoria 6/12
+
+## La matrice di confusione
+
+matr. 2x2 che rappr. tutte le situaz. verificabili in una previsione (associa val previsto e valore osservato).
+
+In particolare, per var. risp. binaria:
+
+* True Positive e True Negative <- (previsioni corrette)
+* Falsi Negativi <- prevedo un positivo ma oss. un negativo
+* Falsi Positivi <- prevedo un positivo ma oss. un negativo
+
+Per ongiuno di questi casi, avrò una frequenza.
+
+Sulle f., posso calcolare un pario di valori utili a valutare un classificatore:
+
+* la (semplice) percentuale di risposte corrette [formule]
+
+  * specificità
+  * sensibilità 
+
+(valori più specifici)
+
+* valore predittivo positivo <- prob. che l'oss sia realmente 1 quando il classif. da 1
+* valore predittivo negativo <- [...]
+
+* log del rapp. di odds <- [...]
+
+Di nuovo, tutte queste metriche saranno troppo positive se uso lo stesso set per training e test.
+
+## La curva ROC
+
+scelta <- in base a prob. stimata, soglia unica a 0.5
+
+E se definissi più soglie? 
+
+Come confrontare più classif. introducendo flessibilità per la soglia.
+
+Strumento grafico: Curva ROC
+<- valutaz. dell'a bontà del classi'efficacia del classif. al variare della scelta della scoglia.
+
+Mette in relazione true positive rate e false positive rate
+
+[vedi slide 54]
+
+Ottimo <- per val X vicini a 0 e val y vicini a 1
+
+Per ogni soglia, ottengo un TPR e un FPR => ottengo un punto su grafico (=> formo curva ROC)
+
+Poi potrei valutare anche l'area sotto la curva AUC [...]
+
+
+[...]
+
+uso curva per confrontare classif. diversi (per qualunque val soglia)
+
+## Note di chiusura
+
+Esistono tanti classificatori:
+
+* reg. logistica
+* classif. bayesiano (teorico)
+* LDA e QDA
+* kNN
+
+* alberi di classif. 
+* ...
+
+* combinaz. di classif semplici (interessante ambito di ricerca)
+  * foreste casuali (+ alberi)
+  * bootstrap aggregator
+  * alg. di boosting (ripeti + volte l'uso del class. forzando a valutare casi classif. male)
+  
+* support vector machines
 
 ## Example: credit scoring ###
 
@@ -737,12 +810,19 @@ NOTA: come per prima, posso ragionare in ottica inferenziale oppure più in term
 
 ```{r}
 mod1 <- glm(y~account+duration+amount+moral+intuse, family=binomial, data=Scoring)
-prediction1 <- ifelse(predict(mod1, Scoring, type='response') > 0.5, 1, 0)
+
+prediction1 <- ifelse(
+  # stima della media della risposta (usata come input di ifelse per effettuare previs.)
+  predict(mod1, Scoring, type='response') > 0.5, 1, 0)
+
+# prendo anche i val osservati
 observed <- Scoring$y
 ```
 
 
 ### confusion matrix and prediction diagnostic
+
+costruz. della confusion matrix:
 
 ```{r}
 confusion <- table(prediction1, observed)
@@ -751,111 +831,233 @@ rownames(confusion) <- c("creditworthy","not creditworthy")
 confusion
 ```
 
+In R con pacchetto crossval posso usare la funz. "confusionMatrix"
 
+(stesso res. ma messo in riga)
+
+```{r}
 library(crossval)
 cm <- confusionMatrix(Scoring$y, prediction1, negative="0")
 cm
+```
 
+Con funz. diagnosticErrors invece posso valutare 
+
+```{r}
 de <- diagnosticErrors(cm)
 de
+```
+* accurat. globlae
+* TPR (sensibilità)
+* TNR (specificita)
+* valore predittivo positivo
+* valore predittivo negativo
+* log odds rate
 
-# confusion matrix and prediction diagnostic using cross-validation
 
+### confusion matrix and prediction diagnostic using cross-validation
+
+Fino adesso abbiamo utilizzato stesso set per training e test. Ora voglio una valutaz. un po' meno ottimista sul modello
+
+Def. la funzione che uso ripetutamente per testare il modello e generare i val. della conf. matrix
+```{r}
 predfun.glm = function(train.x, train.y, test.x, test.y, negative)
 {
   train.data <- data.frame(train.x, train.y)
   glm.fit <- glm(train.y~., binomial, train.data)
   ynew <- predict(glm.fit, newdata=data.frame(test.x, test.y), type="response")
+  
+  # il valore è magg. di 0.5? --> [1,0]
   ynew <- as.numeric(ynew>0.5)
   out <- confusionMatrix(test.y, ynew, negative=negative)
   return(out)
 }
-set.seed(1992)
-cv.out <- crossval(predfun.glm, Scoring[,4:8], Scoring$y, K=10, B=1,
-                  negative="0", verbose=FALSE)
+```
 
+```{r}
+set.seed(1992)
+cv.out <- crossval(predfun.glm, Scoring[,4:8], Scoring$y, 
+                   K=10, # ripeti 10 volte 
+                   B=1, negative="0", verbose=FALSE)
+```
+
+
+Anche sulla cv posso fare diagnostiche (medie):
+```{r}
 de.cv<-diagnosticErrors(cv.out$stat)
 de.cv
+```
 
+
+```{r}
 tabe <- rbind(de[c(1,3,2)],de.cv[c(1,3,2)])
 rownames(tabe)<-c("training data","cross-validated")
 colnames(tabe)<-c("tot. accuracy","true negative","true positive")
 tabe
+```
 
-# ROC curve
 
+### ROC curve
+
+```{r}
 library(verification)
 roc.plot(as.numeric(Scoring$y)-1, fitted(mod1), 
     xlab='false positive rate = 1-true negative rate', ylab='true positive rate')
+
+# segmenti  su soglie 0.5
 segments(1-de[3],-0.05,1-de[3],de[2],lty=2,col=2,lwd=2)
 segments(-0.05,de[2],1-de[3],de[2],lty=2,col=2,lwd=2)
+```
 
-# LDA
 
+### LDA
+
+Classif. con linear discriminant analysis 
+
+```{r}
 z <- lda(y ~ amount + duration, Scoring)
-prob.lda <- predict(z)$posterior[,2]
 
-# kNN using the library "RWeka"
+prob.lda <- predict(z)$posterior[,2] # [...]
+```
 
+Nota: 
+
+* var espl <- devono essere di tipo numerico
+* distrib. di prob. di tipo gaussiano
+
+### kNN using the library "RWeka"
+
+Weka <- strumento molto usato, Java
+
+RWeka <- per accederci tramite R
+
+```{r}
 library(RWeka)
-classifier <- IBk(y ~ moral + intuse+ account + amount + duration, data = Scoring, 
-                  control = Weka_control(K = 20, X= TRUE)) ###selects K with CV n
-prob.knn <- predict(classifier, type="probability")[,2]
 
-ver_mod1<-verify(as.numeric(Scoring$y)-1, fitted(mod1), bins = FALSE, 
-            show = FALSE)
+# res. di kNN (ottenuto tramie Weka)
+classifier <- IBk(y ~ moral + intuse + account + amount + duration, data = Scoring, 
+                  
+                  control = Weka_control(K = 20, # "scegli k ottimale da 1 a 20" 
+                                         X= TRUE # (con proc. di cross validation 
+                                         )) 
+
+
+prob.knn <- predict(classifier, 
+                    type="probability" # vogliamo prob. esito, non esito
+                    )[,2]
+```
+
+
+Confrontiamo LDA, kNN e reg. logistica classica:
+```{r}
+# verify <- a fronte dei val oss. e previsione, mi fornisce elementi 
+# necessari per costr. curva ROC
+# (ciò che cambia è il modo in cui ottengo le predizioni)
+ver_mod1<-verify(as.numeric(Scoring$y)-1, fitted(mod1), bins = FALSE, show = FALSE)
 ver_lda<-verify(as.numeric(Scoring$y)-1, prob.lda, bins = FALSE, show = FALSE)
 ver_knn<-verify(as.numeric(Scoring$y)-1, prob.knn, bins = FALSE, show = FALSE)
+
+# ora facciamo il plot dei vari ROC
 roc.plot(ver_mod1,xlab='false positive rate', ylab='true positive rate',lwd=2,
          show.thres = FALSE)
-lines.roc(ver_lda, col = 2, lwd = 2)
+lines.roc(ver_lda, col = 2, lwd = 2)  # sovrapponi curva su plot ROC esistente
 lines.roc(ver_knn, col = 4, lwd = 2)
+```
 
+
+### Approf. miglior classificatore
+
+kNN <- è risultato il migliore
+
+Verifichiamo i vari tassi
+
+evaluate_Weka_classifier <- funz. che valuta un classificatore.
+
+```{r}
+
+# non voglio CV (di fatto valuto in modo "secco" il set di trainig)
 tr.knn <- evaluate_Weka_classifier(classifier, numFolds=0)$confusionMatrix 
+
+# valutaz. meno ottimistica usand cv
 cv.knn <- evaluate_Weka_classifier(classifier, numFolds=20, 
               seed=1973)$confusionMatrix 
+```
 
+
+Def. una funzione che calcola i vari param. che  mi interessano data la confusion matrix:
+```{r}
 ev.acc <- function(CM)
 {
-  acc <- (CM[1,1] + CM[2,2]) /sum(CM)
-  tn <-  CM[1,1] / (CM[1,1]+CM[1,2]) 
-   tp <-  CM[2,2] / (CM[2,1]+CM[2,2]) 
+  acc <- (CM[1,1] + CM[2,2])/sum(CM) # accuratezza
+  tn <-  CM[1,1] / (CM[1,1]+CM[1,2]) # specificità
+  tp <-  CM[2,2] / (CM[2,1]+CM[2,2]) # sensibilità
+  
   return(c(acc,tn,tp))
 }
+```
 
+
+```{r}
 tabe1 <- rbind(ev.acc(tr.knn), ev.acc(cv.knn))
 rownames(tabe1)<-c("training data","cross-validated")
 colnames(tabe1)<-c("tot. accuracy","true negative","true positive")
 tabe1
+```
+
+Oss: con CV abb
+
+## Example: two-predictors simulated data
+
+Data set "mixture.example" of the package "ElemStatLearn", associated to the book "The Elements of Statistical Learning, Data Mining, Inference, and Prediction" by T. Hastie, J.H. Friedman and R. Tibshirani
 
 
-### Example: two-predictors simulated data ###
-
-# Data set "mixture.example" of the package "ElemStatLearn", associated to the book "The Elements of 
-# Statistical Learning, Data Mining, Inference, and Prediction" by T. Hastie, J.H. Friedman and R. Tibshirani
-
+```{r}
 library(ElemStatLearn)
+
+# estraggo le varie [...]
 x <- mixture.example$x
 g <- mixture.example$y
 xnew <- mixture.example$xnew
 px1 <- mixture.example$px1
 px2 <- mixture.example$px2
+
+# ...
 prob.bayes <- matrix(mixture.example$prob, length(px1), length(px2))
+```
 
-# Bayes decision boundary
+### Bayes decision boundary
 
-contour(px1, px2, prob.bayes, levels=0.5, labels="", xlab="x1", axes=FALSE,
-      ylab="x2", main="Bayes decision boundary", col="blue")
+Costruiamo la frontiera usando "contour" (disegna una funz. tridimensionale ragionando con le linee di livello):
+```{r}
+# uso una sola linea di lv (0.5, quella della f. bayesiana)
+contour(px1, px2, prob.bayes, levels=0.5, 
+        labels="", xlab="x1", axes=FALSE,
+        ylab="x2", main="Bayes decision boundary", col="blue")
+
+# sovrapp. i val osservati come punti (distinguendoli per colore)
 points(x, col=ifelse(g==1,"red", "black"))
+
+# sovrapp. un box per racchiudere tutto
 box()
+```
 
-# logistic and linear classification boundaries 
+NOTA: anche la front. bayesiana non è perfetta (rimane comunque il classif ottimale)
 
+NOTA: essendo questi dati nati da simulaz. conosco esattamente questi dati (di solito non è così)
+
+### logistic and linear classification boundaries 
+
+Costruiarmo le fornt. ricavate in diversi modi 
+```{r}
 mod <- glm(g~x, binomial)
 beta <- coef(mod) 
 mod.lm <- lm(g~x)
 beta.lm <- coef(mod.lm) 
 
+```
+
+
+```{r}
 contour(px1, px2, prob.bayes, levels=0.5, labels="", xlab="x1", axes=FALSE, 
         ylab="x2", main="Logistic regression boundary", col="blue", lwd=1)
 points(x, col=ifelse(g==1,"red", "black"))
@@ -863,6 +1065,8 @@ abline(a=-beta[1]/beta[3], b=-beta[2]/beta[3], lwd=2)
 abline(a=-beta.lm[1]/beta.lm[3]+0.5/beta.lm[3], 
        b=-beta.lm[2]/beta.lm[3], col="red", lwd=2)
 box()
+```
+
 
 # classification using LDA and QDA
 
