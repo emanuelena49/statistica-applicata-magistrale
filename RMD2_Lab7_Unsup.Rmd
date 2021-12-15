@@ -1,0 +1,454 @@
+---
+title: "Lab 7 - Unsupervised methods"
+author: "Emanuele Lena"
+date: "15/12/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+SOMMA PESI E' DIVERSA DA 1, CORREGGI APPUNTI 13/12
+
+# Teoria 15/12
+
+[...]
+
+Ultima questione: quante comp. principali individuare?
+
+* voglio rapp. su piano? 2. Potrei però voler anche fare altro
+* dipende anche dalla varianza che voglio "spiegare"
+
+Varianza spiegata dell's-esima componente: [...]
+
+Somma di tutte = 1
+
+Posso anche mettere le var spiegate su un grafico (normale o cumulativo)
+
+Scelta comp. principali <- posso:
+
+* scegliere un lv. cumulativo di cui sono soddisfatto (%)
+* oss. il grafico normale e "tenere fino al gomito" (...)
+
+
+```{r}
+## Install the packages "MASS", "cluster"  ##
+
+# install.packages("MASS")
+# install.packages("cluster")
+```
+
+
+## Example: US arrest data ###
+
+### Analisi preliminare
+
+```{r}
+str(USArrests)
+summary(USArrests)
+```
+
+
+```{r}
+pairs(USArrests, panel = panel.smooth, pch=16, lwd=2)
+```
+
+### Analisi delle comp. principali:
+```{r}
+          
+obj <- princomp(USArrests, # nota: potrei anche specificarlo come ogg formula con ~ (senza l'y) 
+                cor=TRUE)  # voglio le variabili standardizzate
+obj
+
+```
+
+Cosa vedo:
+* dev standard delle componenti 
+* il realtà ho di più 
+  - obj$scores   <- [...]
+  - obj$loadings <- vett. dei pesi delle componenti + varianze spiegate dalle varie componenti (???)
+
+
+```{r}
+obj$loadings
+```
+
+
+```{r}
+z1 <- -obj$scores[,1] # the sign of the scores is modified
+boxplot(cbind(scale(USArrests), z1), col=c(rep(5,4),2))
+```
+
+
+```{r}
+phi1<--obj$loadings[,1] # the sign of the loadings is modified
+phi1 # 1st principal component loadings
+phi2<--obj$loadings[,2] # the sign of the loadings is modified
+phi2 # 2nd principal component loadings
+```
+
+biplot <- rapprensetazione con:
+
+* collocazione delle osservazioni
+* specificazione vettori - che tengono conto dei pesi e indicano le "direzioni" delle variabili
+
+```{r}
+obj$loadings<--obj$loadings # the sign of the loadings is modified
+obj$scores<--obj$scores # the sign of the scores is modified
+biplot(obj, xlab="1st principal component", ylab="2nd principal component", 
+       xlim=c(-3.5,3.5), col=c(1,2), scale=0)
+```
+
+
+```{r}
+par(mfrow=c(1,2), pty="s")
+plot(obj$sdev^2/4 # proporzione di varianza spiegata 
+     , xlab="Principal component", ylab="PVE", type='b')
+
+# v. cumulata
+plot(cumsum(obj$sdev^2)/4, 
+     xlab="Principal component", ylab="Cumulative PVE", 
+     ylim=c(0,1), type='b')
+par(mfrow=c(1,1))
+```
+
+# Teoria 15/12 - Clustering
+
+## Che cosa sono
+
+famiglia ampia
+
+obiettivo: partendo da una matrice di dati, voglio individuare sotto-gruppi/cluster di unità statistiche (dove le unità del gruppo sono simili e i gruppi sono diversi tra di loro).
+
+appl: 
+* market segmentation e promozioni mirate
+* assicurazioni e premi personalizzati sui dati 
+
+in certi contesti potrei voler invece "clusterizzare le variabili" (individuare variabili con comp. simili) <- prendo trasposta della matrice
+
+## Le procedure di clustering 
+
+### Nota
+
+A seconda della procedura e delle scelte che faccio nella procedura potrei ottenere risultati anche molto diversi. E' normale che procedure diverse diano risultati diversi.
+
+=> è bene:
+* applicare più procedure
+* applicare la stessa procedura con scelte diverse
+
+Se ottengo risultati simili, posso avere più sicurezza sui risultati
+
+### Classificazione delle procedure
+
+3 tipi principali (+ altri - es. Density clustering)
+
+1. clustering gerarchico (def. gerarchia clusterizzazioni) <- albero di clusterizzazioni, definisco una "gerarchia" di classificazioni sempre più grezze/fini. 2 approcci:
+  - agglomerativo (bottom-up) <- parto da 1 cls per oss. e aggrego
+  - divisiva (top-down) <- parto da 1 sola classe (radice) e spezzo
+    
+2. metodi di clustering partizionato <- def. in partenza quanti cluster voglio (k) e cerco "la migliore allocazione" (tante tecniche: es. k-means)
+
+3. model based clustering <- tramite distrib. di probabilità definisco la prob. di appartenzenza ad un cluster rispetto che un altro.
+
+Solitamente si usano mod. "di tipo mistura" (per ogni cluster ho una serie di gaussiana per ogni variabile => valuto congiuntamente le prob. di appartenere a ciascun cluster. Se non ho questi cluster, devo [...])
+
+## Misura di similarità/dissimilarità
+
+Come misuro se la somiglianza/dissomiglianza tra due oss?
+
+"distanza" 
+
+parto da matrice $X^{n*p}$, introduco la nozione di similarità/dissimilarità e costruisco una matrice $n*n$ con le distanze tra tutte le osservazioni $d(a,b)$
+
+Proprietà: 
+
+* non negatività
+* [...]
+
+
+### Esempi di distanze
+
+* distanza euclidea
+* distanza di Manhattan
+* distanza legata al massimo
+* ...
+
+Variabili solo numeriche? No
+
+Es. var binarie <- potrei usare il concetto di 
+
+* "distanza binaria" (Jaccord)
+* dist di hamming
+* ...
+
+
+## Clustering gerarchico 
+
+agglomerativo (bottom-up):
+* 1 classe per ongi oss
+* merge classi in base a distanze finché non arrivo ad unica classe
+
+divisivo (top-down): 
+* parto da un grosso cluster
+* lo divido in due
+* scelgo un altro e ripeto
+
+NOTA: il clustering divisivo è più difficile (che criteri?)
+
+### Criteri di linkage
+
+capita di aggregare/dividere non solo osservazioni ma CLUSTER => devo anche trovare nozioni di "distanza tra cluster" (Criteri di linkage)
+
+* l. completo <- massima dissimilarità tra oss
+* l. singolo <- minima dissimilarità tra oss
+* l. medio <- dissimilarità media tra oss
+* l. per centroide <- calcolo i centroidi e calcolo dissimilarità
+
+NOTA: ogni metodo presenta vantaggi e svantaggi (es. l. singolo <- potrebbe formare "catene di valori molto vicini")
+
+### L'output (Il dendogramma)
+
+E' una gerarchia di clusterizzazione (graficamete: un diag. ad albero chiamato "dendogramma")
+
+Albero <- ha un'altezza, man mano che salgo ottengo cluster sempre più ampi (finchè arrivo alla radice)
+
+NOTA: la dist. tra le oss. NON si vede sull'asse delle X, ma osservando le gerarchie
+
+### Taglio del dendogramma
+
+Seleziono un'altezza e "faccio un taglio" (cioè prendo i cluster definiti in quel taglio)
+
+
+## Clustering con procedure di tipo partizionato
+
+Si parte definendo il numero di cluster (non sovrapposti) desiderato
+
+Algoritmo <- lavora sempre con K cluster, che modifica in "passi"
+
+deve partire da una classificazione (totalmente casuale, oppure risultato di clustering gerarchico) - PASSO 0
+
+### k-means
+
+Alg. molto popolare, minimizza la variabilità interna ai cluster
+
+(scelte abbastanza tipiche:)
+* var standardizzate
+* distanze <- euclidee
+
+Appartenenza al cluster <- esclusiva
+
+funz. obiettivo <- [...]
+
+Come sisviluppa l'alg:
+
+* parto con assegnaz. casuale (oppure da clusterizzazione già fatta)
+* finché non mi stabilizzo, 
+  - calcolo centroide
+  - ogni oss. viene ri-assegnata al cluster di centroide più vicino
+  
+  
+### K-medoids
+
+Variante k-means. Il rapp dei cluster NON è il centroide ma un'altra misura
+
+"medioide"
+
+## Example: three clusters simulated data ###
+
+
+```{r}
+set.seed(25)
+x<-matrix(rnorm(75*2), ncol=2)
+x[1:25,1]<-x[1:25,1]+2
+x[1:25,2]<-x[1:25,2]-2
+x[26:50,1]<-x[26:50,1]+3
+plot(x[1:25,1], x[1:25,2], xlim=c(-2,4.5), ylim=c(-4,2), type='n', xlab='X1',
+     ylab='X2')
+text(x[1:25,1], x[1:25,2])
+text(x[26:50,1], x[26:50,2],labels = seq(26,50,1),col='red')
+text(x[51:75,1], x[51:75,2],labels = seq(51,75,1),col='blue')
+```
+
+
+```{r}
+hc.complete<-hclust(dist(x), method="complete")
+plot(hc.complete, xlab="", sub="", cex=.9) 
+abline(5,0,lty=2)
+# plot(hc.complete, hang=-1, xlab="", sub="", cex=.9) 
+# abline(5,0,lty=2)
+```
+
+
+```{r}
+cutree(hc.complete, 3)
+
+```
+
+```{r}
+hc.average<-hclust(dist(x), method="average")
+plot(hc.average, xlab="", sub="", cex=.9) 
+abline(2.6,0,lty=2)
+cutree(hc.average, 3)
+```
+
+
+```{r}
+hc.centroid<-hclust(dist(x), method="centroid")
+plot(hc.centroid, xlab="", sub="", cex=.9) 
+abline(1.5,0,lty=2)
+cutree(hc.centroid, 3)
+```
+
+
+```{r}
+set.seed(5)
+km3<-kmeans(x, 3, nstart =20)
+km3
+```
+
+
+```{r}
+plot(x[1:25,1], x[1:25,2], xlim=c(-2,4.5), ylim=c(-4,2), type='n', 
+     xlab='X1', ylab='X2')
+text(x[which(km3$cluster==1),1], x[which(km3$cluster==1),2],
+     labels = which(km3$cluster==1))
+text(x[which(km3$cluster==2),1], x[which(km3$cluster==2),2],
+     labels = which(km3$cluster==2),col='red')
+text(x[which(km3$cluster==3),1], x[which(km3$cluster==3),2],
+     labels = which(km3$cluster==3),col='blue')
+points(km3$centers[1,1], km3$centers[1,2], pch=19, cex=1.5)
+points(km3$centers[2,1], km3$centers[2,2], pch=19, col='red', cex=1.3)
+points(km3$centers[3,1], km3$centers[3,2], pch=19, col='blue', cex=1.3)
+```
+
+
+```{r}
+library(cluster)
+me3<-pam(x, 3)
+me3
+```
+
+
+```{r}
+plot(x[1:25,1], x[1:25,2], xlim=c(-2,4.5), ylim=c(-4,2),type='n', 
+     xlab='X1', ylab='X2')
+text(x[which(me3$cluster==1),1], x[which(me3$cluster==1),2],
+     labels = which(me3$cluster==1))
+text(x[which(me3$cluster==2),1], x[which(me3$cluster==2),2],
+     labels = which(me3$cluster==2), col='red')
+text(x[which(me3$cluster==3),1], x[which(me3$cluster==3),2],
+     labels = which(me3$cluster==3), col='blue')
+points(x[1,1], x[1,2], pch=21, cex=3, lwd=2)
+points(x[21,1], x[21,2], pch=21, cex=3, col='red', lwd=2)
+points(x[74,1], x[74,2], pch=21, cex=3, col='blue', lwd=2)
+```
+
+
+
+## Example: Swiss socioeconomic indicators
+
+5 var di tipo socio-economico per vari territori della svizzera
+
+dati sono percentuali <- ha senso prendere come criterio dist. euclidea (semplice)
+
+Applicheremo poi diversi metodi e otteniamo res. diversi
+
+```{r}
+data(swiss)
+str(swiss)
+swiss.x <- as.matrix(swiss[, -1]) # new data matrix without Fertility
+pairs(swiss.x, panel = panel.smooth, pch=16, lwd=2)
+```
+
+
+```{r}
+h <- hclust(dist(swiss.x), method = "single")
+plot(h,cex=.8, xlab=' ',sub=' ', main=' ')
+rect.hclust(h, k=3, border='red')
+```
+
+
+```{r}
+library(cluster)
+h1<-diana(swiss.x)
+pltree(h1, cex=.8,xlab=' ',sub=' ', main=' ')
+rect.hclust(h1, k=3, border='red')
+```
+
+
+```{r}
+h2 <- hclust(dist(swiss.x), method = "average")
+initial <- tapply(swiss.x, list(rep(cutree(h2,3), ncol(swiss.x)), 
+                    col(swiss.x)), mean)
+dimnames(initial) <- list(NULL, dimnames(swiss.x)[[2]])
+initial
+```
+
+
+```{r}
+h3<-kmeans(swiss.x,centers=initial)
+h3
+```
+
+
+```{r}
+swiss.pca <- prcomp(swiss.x)
+swiss.px <- predict(swiss.pca)
+swiss.centers <- predict(swiss.pca, h3$centers)
+plot(swiss.px[, 1:2], type = "n", xlab = "1st principal component",
+     ylab = "2nd principal component")
+text(swiss.px[which(h3$cluster==1), 1:2], 
+     labels = h3$cluster[which(h3$cluster==1)])
+text(swiss.px[which(h3$cluster==2), 1:2], 
+     labels = h3$cluster[which(h3$cluster==2)], col='red')
+text(swiss.px[which(h3$cluster==3), 1:2], 
+     labels = h3$cluster[which(h3$cluster==3)], col='blue')
+points(swiss.centers[1,1], swiss.centers[1,2], pch=19, lwd=2)
+points(swiss.centers[2,1], swiss.centers[2,2], pch=19, lwd=2, col='red')
+points(swiss.centers[3,1], swiss.centers[3,2], pch=19, lwd=2, col='blue')
+```
+
+
+```{r}
+set.seed(5)
+h4<-kmeans(swiss.x,3,nstart=20)
+swiss.centers <- predict(swiss.pca, h4$centers)
+plot(swiss.px[, 1:2], type = "n", xlab = "1st principal component",
+     ylab = "2nd principal component")
+text(swiss.px[which(h4$cluster==1), 1:2], 
+     labels = h4$cluster[which(h4$cluster==1)])
+text(swiss.px[which(h4$cluster==2), 1:2], 
+     labels = h4$cluster[which(h4$cluster==2)]+1,col='blue')
+text(swiss.px[which(h4$cluster==3), 1:2], 
+     labels = h4$cluster[which(h4$cluster==3)]-1, col='red')
+points(swiss.centers[1,1], swiss.centers[1,2], pch=19, lwd=2)
+points(swiss.centers[2,1], swiss.centers[2,2], pch=19, lwd=2, col='blue')
+points(swiss.centers[3,1], swiss.centers[3,2], pch=19, lwd=2, col='red')
+```
+
+
+```{r}
+h5 <- pam(swiss.x,3)
+h5
+swiss.medoids <- predict(swiss.pca, h5$medoids)
+plot(swiss.px[, 1:2], type = "n", xlab = "1st principal component", 
+     ylab = "2nd principal component")
+text(swiss.px[which(h5$cluster==3), 1:2], 
+     labels = h5$cluster[which(h5$cluster==3)]-2)
+text(swiss.px[which(h5$cluster==2), 1:2], 
+     labels = h5$cluster[which(h5$cluster==2)], col='red')
+text(swiss.px[which(h5$cluster==1), 1:2], 
+     labels = h5$cluster[which(h5$cluster==1)]+2, col='blue')
+points(swiss.medoids[3,1], swiss.medoids[3,2], pch=21, cex=3, lwd=2)
+points(swiss.medoids[2,1], swiss.medoids[2,2], pch=21, cex=3, col='red', lwd=2)
+points(swiss.medoids[1,1], swiss.medoids[1,2], pch=21, cex=3, col='blue', lwd=2)
+```
+
+
+```{r}
+swiss.x <- as.data.frame(swiss.x)
+pairs(swiss.x, col = 1 + (swiss.x$Catholic > 50))
+```
+
+
