@@ -254,37 +254,99 @@ Variante k-means. Il rapp dei cluster NON è il centroide ma un'altra misura
 
 "medioide"
 
+
+# Teoria 20/12/2021
+
+## Model-based clustering
+
+Sappiamo che una o più osservazioni appartie 
+
+"mistura" di gaussiane con peso (in base a prob. di appartenere ad un gruppo rispetto ad un altro)
+
+generalizzazione della formula di prob. totale
+
+## Note varie
+
+### Diverse decisioni 
+
+* decidere se standardizzare o no le variabili
+* decidere misura similitudine/dissimiliarità
+* decidere come misurare dist. tra cluster
+* in c. gerarchico, dove tagliare il dendogramma?
+* in m. partizionati, che numero di cluster impostare?
+
+=> provare più metodi/più scelte diverse e vedere se i res. sono simili
+
+### Altre note
+
+* i metodi di clustering, generalmente sono poco robusti (rispetto a val. anomali)
+* ci sono anche altri oltre quelli visti
+  - model based
+  - basati sulla densità
+  - modelli "phased" (grado di appartenenza a cluster piuttosto che altro)
+  
+* ci sono anche metodi per valutare "bontà" di una clusterizzazione
+  - più facile se ho "mod. teorico di riferimento"
+  - altrimenti indici numerici (es. coesione e diversità nei cluster <- con vari indicatori)
+
+
 ## Example: three clusters simulated data ###
 
+Dati simulati, si vogliono avere 3 cluster
+
+75 oss.
+
+Cerchiamo di applicare le varie metodologie per vedere cosa ci producono
 
 ```{r}
 set.seed(25)
+
+# matrice 75 x 2 (righe <- oss, colonne)
 x<-matrix(rnorm(75*2), ncol=2)
+
+# introduco modifiche per "distanziare i dati"
 x[1:25,1]<-x[1:25,1]+2
 x[1:25,2]<-x[1:25,2]-2
 x[26:50,1]<-x[26:50,1]+3
-plot(x[1:25,1], x[1:25,2], xlim=c(-2,4.5), ylim=c(-4,2), type='n', xlab='X1',
-     ylab='X2')
-text(x[1:25,1], x[1:25,2])
-text(x[26:50,1], x[26:50,2],labels = seq(26,50,1),col='red')
+
+
+plot(x[1:25,1], x[1:25,2], xlim=c(-2,4.5), ylim=c(-4,2), type='n', # disegnami il "frame" ma non i punti...
+     xlab='X1', ylab='X2')
+
+# ... quelli li colloco dopo con note testuali
+text(x[1:25,1], x[1:25,2]) # se non gli dico niente, uso i numeri 1,...,25 (indici di riga)
+text(x[26:50,1], x[26:50,2],labels = seq(26,50,1),col='red') # qui invece esplicito i label
 text(x[51:75,1], x[51:75,2],labels = seq(51,75,1),col='blue')
 ```
 
+### Clustering gerarchico
+
+
 
 ```{r}
-hc.complete<-hclust(dist(x), method="complete")
+# output <- è una lista
+hc.complete<-hclust(dist(x), # distanza tra tutte le coppie, se non specifico uso la dist. euclidea
+                    method="complete") # specifico il tipo di linkage (singolo, completo, medio, ...)
+
+# per rapp la sequenza, uso semplicemente plot (fornisce già il dendogramma)
 plot(hc.complete, xlab="", sub="", cex=.9) 
 abline(5,0,lty=2)
+
+# (se vogliamo, possiamo "abbassare" tutti i label ad un unica altezza)
 # plot(hc.complete, hang=-1, xlab="", sub="", cex=.9) 
 # abline(5,0,lty=2)
 ```
 
-
+Prelevare un "taglio" del dendogramma
 ```{r}
+# in questo caso ho specificato "quanti gruppi", ma potrei usare invece l'altezza
 cutree(hc.complete, 3)
+
+# output: un array (con la classif di ciascuna osservazione/riga)
 
 ```
 
+Clusterizzazione con altro metodo di linkage (l. medio): 
 ```{r}
 hc.average<-hclust(dist(x), method="average")
 plot(hc.average, xlab="", sub="", cex=.9) 
@@ -292,6 +354,9 @@ abline(2.6,0,lty=2)
 cutree(hc.average, 3)
 ```
 
+Oss: sempre facendo il taglio per avere tre gruppi, con m. di linkage diverso ottengo res diversi
+
+Usiamo anche il metodo del centroide:
 
 ```{r}
 hc.centroid<-hclust(dist(x), method="centroid")
@@ -300,32 +365,61 @@ abline(1.5,0,lty=2)
 cutree(hc.centroid, 3)
 ```
 
+(altri risultati ancora diversi)
 
+### k-means, k=3, 20 esecuzioni 
+
+Usiamo kmeans
 ```{r}
+
 set.seed(5)
+
+# - in questo caso non dò le distanze come argomento ma proprio le oss. 
+#   (perche poi R calcola le dist. dai centroidi volta per volta)
+# - specifico che voglio iterare 20 volte
+# - potrei specificare l'argomento "center" per impostare un val di base per i centroidi
+#   (altrimenti l'assegnaz. sarebbe casuale)
 km3<-kmeans(x, 3, nstart =20)
 km3
 ```
 
+Oss: R mi dice
+
+* che cosa ho fatto (clust. con kmeans)
+* coord. dei centroidi
+* etichette osservazioni
+* rif. a variabilità tra i gruppi 
+    (sol. sub. ottimale: massimizza le variabilità TRA i gruppi e minimizza DENTRO i gruppi)
 
 ```{r}
 plot(x[1:25,1], x[1:25,2], xlim=c(-2,4.5), ylim=c(-4,2), type='n', 
      xlab='X1', ylab='X2')
+
+# stampo (separatamente) le oss. delle diverse componenti usando la clausola "which"
 text(x[which(km3$cluster==1),1], x[which(km3$cluster==1),2],
      labels = which(km3$cluster==1))
 text(x[which(km3$cluster==2),1], x[which(km3$cluster==2),2],
      labels = which(km3$cluster==2),col='red')
 text(x[which(km3$cluster==3),1], x[which(km3$cluster==3),2],
      labels = which(km3$cluster==3),col='blue')
+
+# disegno anche i centroidi
 points(km3$centers[1,1], km3$centers[1,2], pch=19, cex=1.5)
 points(km3$centers[2,1], km3$centers[2,2], pch=19, col='red', cex=1.3)
 points(km3$centers[3,1], km3$centers[3,2], pch=19, col='blue', cex=1.3)
 ```
 
+Oss.
+
+vediamo i centro dei 
+
+### Varante con Medoidi (invece che centroidi)
+
+Libreria cluster, funz. pam
 
 ```{r}
 library(cluster)
-me3<-pam(x, 3)
+me3<-pam(x, 3) # argomenti simili
 me3
 ```
 
@@ -344,33 +438,51 @@ points(x[21,1], x[21,2], pch=21, cex=3, col='red', lwd=2)
 points(x[74,1], x[74,2], pch=21, cex=3, col='blue', lwd=2)
 ```
 
+Differenza: i centri sono osservazioni mediane (e non valori medi)
 
 
 ## Example: Swiss socioeconomic indicators
 
-5 var di tipo socio-economico per vari territori della svizzera
+6 var di tipo socio-economico per vari territori della svizzera (di lingua francese)
 
 dati sono percentuali <- ha senso prendere come criterio dist. euclidea (semplice)
 
 Applicheremo poi diversi metodi e otteniamo res. diversi
 
+* fertilità
+* agricoltura <- % persone impiegate nell'agricoltura
+* examination <- % reclute accettate nell'esercito
+* education <- 
+* catholic <- % cattolici (risp. a protestanti)
+* inf. mortality <- % bambini che muoiono nel primo anno di vita
+
+
 ```{r}
 data(swiss)
 str(swiss)
+
+# (ignoriamo prima colonna) e mettiamo come matrice
 swiss.x <- as.matrix(swiss[, -1]) # new data matrix without Fertility
+
 pairs(swiss.x, panel = panel.smooth, pch=16, lwd=2)
 ```
 
+### Alg. partizionati (metodo gerarchico)
 
 ```{r}
 h <- hclust(dist(swiss.x), method = "single")
 plot(h,cex=.8, xlab=' ',sub=' ', main=' ')
+
+# funzione simile a quella di prima per il "taglio", 
+# ma che mi sovrappone dei rettangoli grafici sul dendogramma
 rect.hclust(h, k=3, border='red')
 ```
 
 
 ```{r}
 library(cluster)
+
+# approccio alternativo con funz. libreria cluster
 h1<-diana(swiss.x)
 pltree(h1, cex=.8,xlab=' ',sub=' ', main=' ')
 rect.hclust(h1, k=3, border='red')
@@ -379,36 +491,81 @@ rect.hclust(h1, k=3, border='red')
 
 ```{r}
 h2 <- hclust(dist(swiss.x), method = "average")
-initial <- tapply(swiss.x, list(rep(cutree(h2,3), ncol(swiss.x)), 
-                    col(swiss.x)), mean)
+h2
+
+# applico ripetutamente la f. "mean" sulle 5 variabili ma distinguendo gruppo per gruppo 
+initial <- tapply(
+  
+  # dati
+  swiss.x, 
+  
+  # lista che mi dice "come vado a fare la media"
+  list(
+    
+    # replico cuttree, tante volte quante sono le matr. di dati
+    # output: classif. di ogni riga
+    rep(cutree(h2,3), ncol(swiss.x)), 
+    
+    col(swiss.x)
+  ), 
+  
+  # funz. da applicare                 
+  mean
+)
+
+
 dimnames(initial) <- list(NULL, dimnames(swiss.x)[[2]])
 initial
 ```
 
+### K-means
 
+Uso gli initials ricavati con gerarchico
 ```{r}
 h3<-kmeans(swiss.x,centers=initial)
 h3
 ```
 
+### Analisi delle comp. principali
+
+Proviamo a combinare componenti centrali e cluster per produrre nuovo output "riassuntivo" su piano cartesiano
+
+predict(output componenti centrali): coordinate di 5 var -> coordinate ri-scritte su (5) comp. principali
 
 ```{r}
+# Performs a principal components analysis on the given data matrix and returns the results as an object of class prcomp.
 swiss.pca <- prcomp(swiss.x)
+swiss.pca
+
+# previsione (dato l'output). Visto che non specif. nuovi dati, usiamo quelli di training
 swiss.px <- predict(swiss.pca)
+
+# effettuiamo una previsione anche per i centroidi
 swiss.centers <- predict(swiss.pca, h3$centers)
-plot(swiss.px[, 1:2], type = "n", xlab = "1st principal component",
+
+# uso prime due componenti per avere una rappresentazione su un piano cartesiano
+plot(swiss.px[, 1:2], type = "n", # (di nuovo, creiamo solo frame)
+     xlab = "1st principal component",
      ylab = "2nd principal component")
+
+# inseriamo (di nuovo) i punti a parte come label testuali, 
+# colorandoli per cluster (con la clusterizz. fatta prima)
+#
+# coordinate <- quelle ricavate con "predict" 
 text(swiss.px[which(h3$cluster==1), 1:2], 
      labels = h3$cluster[which(h3$cluster==1)])
 text(swiss.px[which(h3$cluster==2), 1:2], 
      labels = h3$cluster[which(h3$cluster==2)], col='red')
 text(swiss.px[which(h3$cluster==3), 1:2], 
      labels = h3$cluster[which(h3$cluster==3)], col='blue')
+
+# inserisco anche i centroidi
 points(swiss.centers[1,1], swiss.centers[1,2], pch=19, lwd=2)
 points(swiss.centers[2,1], swiss.centers[2,2], pch=19, lwd=2, col='red')
 points(swiss.centers[3,1], swiss.centers[3,2], pch=19, lwd=2, col='blue')
 ```
 
+Ora ripeto ma usando la clusterizz con kmeans (k=3, nstart=20, primi centroidi casuali):
 
 ```{r}
 set.seed(5)
@@ -427,6 +584,7 @@ points(swiss.centers[2,1], swiss.centers[2,2], pch=19, lwd=2, col='blue')
 points(swiss.centers[3,1], swiss.centers[3,2], pch=19, lwd=2, col='red')
 ```
 
+Ripetiamo anche con k-means con medioidi:
 
 ```{r}
 h5 <- pam(swiss.x,3)
@@ -445,6 +603,12 @@ points(swiss.medoids[2,1], swiss.medoids[2,2], pch=21, cex=3, col='red', lwd=2)
 points(swiss.medoids[1,1], swiss.medoids[1,2], pch=21, cex=3, col='blue', lwd=2)
 ```
 
+
+Oss: di fatto, osservando sulle comp. centrali, abbiamo res. stabili
+
+Ultima cosa: vediamo grafico di prima evidenziando provincie con magg. cattolica (per capire se c'è influenza della religione)
+
+PUNTINI ROSSI
 
 ```{r}
 swiss.x <- as.data.frame(swiss.x)

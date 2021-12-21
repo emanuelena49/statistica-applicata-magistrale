@@ -1021,8 +1021,9 @@ xnew <- mixture.example$xnew
 px1 <- mixture.example$px1
 px2 <- mixture.example$px2
 
-# ...
-prob.bayes <- matrix(mixture.example$prob, length(px1), length(px2))
+# prob. esito 1, condizionato da px1 e px2
+prob.bayes <- matrix(mixture.example$prob, length(px1), length(px2)) 
+
 ```
 
 ### Bayes decision boundary
@@ -1047,74 +1048,146 @@ NOTA: essendo questi dati nati da simulaz. conosco esattamente questi dati (di s
 
 ### logistic and linear classification boundaries 
 
-Costruiarmo le fornt. ricavate in diversi modi 
+Costruiarmo un mod di reg logistica e modello lineare
 ```{r}
+# reg. logistico
 mod <- glm(g~x, binomial)
-beta <- coef(mod) 
+beta <- coef(mod) # coeff. stimati
+
+
+# creiamo anche mod lineare
 mod.lm <- lm(g~x)
 beta.lm <- coef(mod.lm) 
 
 ```
 
-
 ```{r}
+
+# frontiera bayesiana
 contour(px1, px2, prob.bayes, levels=0.5, labels="", xlab="x1", axes=FALSE, 
         ylab="x2", main="Logistic regression boundary", col="blue", lwd=1)
+
+# le oss
 points(x, col=ifelse(g==1,"red", "black"))
+
+# Le due frontiere (reg. logistico e lineare)
+# (disegno manualmente i punti di inizio e fine)
 abline(a=-beta[1]/beta[3], b=-beta[2]/beta[3], lwd=2)
 abline(a=-beta.lm[1]/beta.lm[3]+0.5/beta.lm[3], 
        b=-beta.lm[2]/beta.lm[3], col="red", lwd=2)
+
 box()
 ```
 
 
-# classification using LDA and QDA
+### classification using LDA and QDA (analisi discriminante)
 
+```{r}
 x1<-x[,1]
 x2<-x[,2]
 lda.fit<-lda(g~x1+x2)
 lda.fit
-# plot(lda.fit)
+```
+
+Oss:
+* a priori, le probabilità dei gruppi sono uguali
+* medie dei gruppi (condizionate)
+* coefficenti lineari da appl. alle var x1 e x2 (nota: segno ci dice come vanno ad incidere su lv della frontiera)
+
+
+Sull'oggetto lda fit posso fare un plot per vedere come cambia la f. discriminante quando passo da un gruppo all'altro
+```{r}
+plot(lda.fit)
+```
+
+
+```{r}
 lda.pred<-predict(lda.fit,newdata=data.frame(x1=xnew[,1],x2=xnew[,2]))
 problda<-matrix(1-lda.pred$posterior,length(px1),length(px2))
 # 1-posterior probability, since the class labels are switched
+```
 
+Prob. a posteriori 
+
+Perchè 1-...? perchè "posterior" mi da le prob. inverse
+
+(proc analoga per qda)
+
+```{r}
 qda.fit<-qda(g~x1+x2)
 qda.fit
 qda.pred<-predict(qda.fit,newdata=data.frame(x1=xnew[,1],x2=xnew[,2]))
 probqda<-matrix(1-qda.pred$posterior,length(px1),length(px2))
 # 1-posterior probability, since the class labels are switched
+```
 
+
+```{r}
+# decision boundary bayesiano
 contour(px1, px2, prob.bayes, levels=0.5, labels="", xlab="x1", axes=FALSE,
         ylab="x2", main="Linear and quadratic discriminant analysis", col="blue",lwd=2)
+
+# 
 contour(px1, px2, problda, levels=0.5,labels="", xlab="", axes=FALSE,
-        ylab="", main="", co="red", lwd=2,add=T)
+        ylab="", main="", co="red", lwd=2, 
+        add=T # per sovrascrivere grafico prec. 
+        )
 contour(px1, px2, probqda, levels=0.5,labels="", xlab="", axes=FALSE,
         ylab="", main="", lwd=2,add=T)
+
+
 points(x, col=ifelse(g==1,"red", "black"),pch=16)
 box()
+```
 
 
-# classification with kNN using the library "class"
-# k=1
 
+### classification with kNN using the library "class"
+
+Nell'es. prec. usavamo la libreria WikaR
+
+Qui usiamo la lib class e la funz. knn di questa libreria:
+
+#### k=1
+```{r}
 library(class)
+
+# argomenti:
+# - x <- matrice a due col. con val di training (di x1 e x2)
+# - g <- val osservati
+# - xnew <- var esplicative dei valori che vogli produrre
+# - prob=TRUE <- voglio la freq relativa - la prob - associata al valore predetto (non necessariamente sempre di 0 o 1, ma della categoria "predetta")
 mod1 <- knn(x, xnew, g, k=1, prob=TRUE)
+
+
 prob <- attr(mod1, "prob")
 prob <- ifelse(mod1=="1", prob, 1-prob) # since KNN produces the probabilities of the predicted class (0 or 1)
 prob1 <- matrix(prob, length(px1), length(px2))
+```
 
+
+```{r}
 contour(px1, px2, prob1, levels=0.5, labels="", axes=FALSE, 
         main="1-nearest neighbors", xlab="x1", ylab="x2")
-gd <- expand.grid(x=px1, y=px2)
+
+
 contour(px1, px2, prob.bayes, levels=0.5, labels="", xlab="x1",
     ylab="x2", col="blue", lwd=1,add=T)
+
+# coloro i punti in base al val oss.
 points(x, col=ifelse(g==1, "red", "black"))
+
+# riempio le soglie colorando i punti di una griglia fine
+gd <- expand.grid(x=px1, y=px2)
 points(gd, pch=".", cex=1.2, col=ifelse(prob1>0.5, "red", "black"))
 box()
+```
 
-# k=10
+Nota: oss. probl. di overfitting
 
+#### k=10
+
+```{r}
 mod10 <- knn(x, xnew, g, k=10, prob=TRUE)
 prob <- attr(mod10, "prob")
 prob <- ifelse(mod10=="1", prob, 1-prob)
@@ -1127,9 +1200,12 @@ points(gd, pch=".", cex=1.2, col=ifelse(prob1>0.5, "red", "black"))
 contour(px1, px2, prob.bayes, levels=0.5, labels="", xlab="x1", ylab="x2", 
         col="blue", lwd=1,add=T)
 box()
+```
 
-# k=50
 
+#### k=50
+
+```{r}
 mod50 <- knn(x, xnew, g, k=50, prob=TRUE)
 prob <- attr(mod50, "prob")
 prob <- ifelse(mod50=="1", prob, 1-prob)
@@ -1143,7 +1219,15 @@ contour(px1, px2, prob.bayes, levels=0.5, labels="", xlab="x1", ylab="x2",
         col="blue", lwd=1,add=T)
 abline(a=-beta[1]/beta[3], b=-beta[2]/beta[3], col=2, lwd=2)
 box()
+```
 
+Commento: 
+
+knn <- metodo molto generale, si può applicare con regressori di vario tipo (e più categorie)
+
+problema <- dare una nozione di distanza efficade 
+
+* v. numeriche <- dist euclidea
 
  
 
