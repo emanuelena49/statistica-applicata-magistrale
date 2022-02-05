@@ -112,7 +112,7 @@ Ora proviamo ad includere nel grafico anche lo stato civile.
 ```{r}
 par(mfrow=c(1,2))
 barplot(
-  t(caff.marital),  # ... come tabella
+  t(caff.marital),  # trasposta
   beside=T,
   legend.text=colnames(caff.marital),
   col=c("white", "grey80","grey50","black")

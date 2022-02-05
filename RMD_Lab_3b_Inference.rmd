@@ -41,6 +41,7 @@ var(nhtemp)
 sd(nhtemp)
 ```
 
+Indici assimmetria e curtosi
 
 ```{r}
 mean((nhtemp-mean(nhtemp))^3)/sqrt(var(nhtemp))^3
@@ -75,7 +76,7 @@ solve(t(X)%*%X)%*%(t(X)%*%y)
 
 
 
-### Basic concepts of point estimation ###
+# Basic concepts of point estimation
 
 ## Example: elastic bands ##
 
@@ -307,75 +308,6 @@ t.test(y)$conf.int
 
 
 # Basic concepts of hypothesis testing
-
-
-## Teoria
-
-### I test 
-
-Test <- tanti tipi
-
-* parametrici <- basati su modelli
-* non parametrici <- non ...
-* altri tipi (eg goodness of fit)
-
-
-Carat. comuni:
-
-* stessa base
-* posso valutare un test anche senza conoscere come è stato fatto
-
-
-### Il problema di verifica d'ipotesi (mod. parametrico)
-
-
-Ho un'ipotesi del tipo ...
-
-Devo valutare se accettarla o rifiutarla (in base ai dati raccolti)
-
-O meglio, ho due ipotesi non sovrapposte
-
-$H_0 : \theta = \theta_0 $ <- ipotesi che vorrei validare (ipotesi nulla)
-
-$H_1 : \theta != \theta_0$ 
-
-Quando accetto uno, accetto l'altra.
-
-
-* sintetizzare i dati
-* definire opportuna statistica campionaria (e.g., prendo uno stimatore, lo modifico un po' e lo uso per compiere la scelta)
-
-
-### Gli errori e il 
-
-Quando accetto/rifiuto un ipotesi, incorro in errori <- due tipi:
-
-* "di tipo 1" <- 
-* "di tipo 2" <- 
-
-di solito voglio minimizzare la prob. degli errori di primo tipo 
-
-=> gli fisso una probabilità $\alpha$.
-
-...
-
-
-### Il p-value
-
-
-* probability, under the null hypothesis, of obtaining a test statistic value, 
-across (hypothetical) repeated random samples, that is at least as extreme 
-(against H0) as that which was observed.
-
-* probabilità, in ipotesi nulla, di ottenere un valore statistico di prova,
-attraverso (ipotetici) campioni casuali ripetuti, che è almeno altrettanto estremo
-(contro H0) come quello che è stato osservato (??????????)
-
-* "measure of closeness of the data to the null hypothesis"
-  
-alpha <- "quanto dobbiamo essere prudenti per accettare l'ipotesi nulla"
-
-
 
 ## Example: maximum temperature
 
