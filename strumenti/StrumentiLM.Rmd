@@ -1,0 +1,172 @@
+---
+title: "Strumenti - LM"
+author: "Emanuele Lena - 142411@uniud"
+date: "8/2/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Indici e valutazioni varie
+
+### Test ANOVA su modelli annidati
+
+```{r}
+leaf.lm1 <- lm(tempDiff ~ 1 , data = DAAG::leaftemp)
+leaf.lm2 <- lm(tempDiff ~ vapPress, data = DAAG::leaftemp)
+leaf.lm3 <- lm(tempDiff ~ CO2level + vapPress, data = DAAG::leaftemp)
+leaf.lm4 <- lm(tempDiff ~ CO2level + vapPress + vapPress:CO2level, data = DAAG::leaftemp)
+
+# conftonto con i paramentri, introducendoli nell'ordine che li ho messi io
+anova(leaf.lm4)
+
+# confronto con i modelli (nell'ordine che indico, purché si rispetti l'annidamento)
+anova(leaf.lm1, leaf.lm2, leaf.lm3, leaf.lm4)
+
+```
+
+```{r}
+# Posso fare ANOVA invertendo l'ordine dei parametri per verificare eventuali collinearità
+anova(lm(tempDiff ~ CO2level + vapPress, data = DAAG::leaftemp))
+anova(lm(tempDiff ~ vapPress + CO2level, data = DAAG::leaftemp))
+```
+
+### Log-somiglianza, AIC, BIC
+```{r}
+mod1 <- lm(Volume ~ Girth, data = datasets::trees)
+mod2 <- lm(Volume ~ Girth + Height, data = datasets::trees)
+
+# logsomiglianza (più è grande, meglio è)
+logLik(mod1)
+logLik(mod2)
+
+# AIC e BIC (più piccoli sono, meglio è)
+AIC(mod1, mod2)
+BIC(mod1, mod2)
+
+# NOTA IMPORTANTE: NO CONFRONTI DI MODELLI CON y SU SCALE DIVERSE!!!
+```
+
+
+### Indice VIF (Variance Inflation factor)
+
+```{r}
+library(compositions)
+data(Coxite)
+coxite <- as.data.frame(Coxite)
+
+# "quanto" una certa variabile è correlata con le altre, 
+# elimino la variabile più correlata
+DAAG::vif(lm(porosity ~ A+B+C+D+depth, data=coxite))
+```
+
+### Trasformata Boxcox
+
+```{r}
+mod <- lm(time ~ climb + dist, data=DAAG::nihills)
+
+# grafico del boxcox
+MASS::boxcox(mod, lambda = seq(0, 2, 0.05))
+
+# calcolo del lambda massimo
+lambdares <- boxcox(mod, lambda = seq(0, 2, 0.05), plotit=F, interp=F)
+max.lambda <- lambdares$x[which.max(lambdares$y)]
+max.lambda 
+
+# trasformazione (automatica) di y
+y <- DAAG::nihills$time
+
+if (max.lambda!=0.0) {
+  yt <- (y^max.lambda-1)/max.lambda
+} else {
+  yt <- log(y)
+}
+
+```
+
+### Training e test MSE (con cross validation)
+
+```{r}
+roller.lm <- glm(depression ~ weight,data=DAAG::roller)
+
+# training MSE
+sum(resid(roller.lm)^2)/nrow(DAAG::roller)
+ 
+# test MSE (con cross validation)
+boot::cv.glm(DAAG::roller, roller.lm)$delta[2]
+                   
+```
+
+### Training e test MSE (con vera predizione)
+
+???
+
+### Intervalli di confidenza e di predizione
+
+```{r}
+
+roller.lm <- lm(depression ~ weight,data=DAAG::roller)
+
+# Intervallo di confidenza (intervallo di stima)
+predict(roller.lm, interval="confidence", newdata = data.frame(weight=6))
+ 
+# Intervallo di previsione
+predict(roller.lm, interval="prediction", newdata = data.frame(weight=6))
+                   
+```
+
+
+
+## Plot vari
+
+### Plot di un modello (semplice) con gli intervalli (di stima e di previsione)
+
+```{r}
+# Plot punti
+plot(depression ~ weight, data = DAAG::roller,
+xlim=c(0,1.04*max(weight)),ylim=c(0,1.04*max(depression)),
+xlab = "Weight of roller", ylab = "Depression", pch = 16)
+
+# Plot modello
+roller.lm <- lm(depression ~ weight,data=DAAG::roller)
+abline(roller.lm, col="red", lwd=2)
+
+# Intervalli confidenza
+xy <- data.frame(weight = seq(1, 13, 1), 20)
+
+yhat <- predict(roller.lm, newdata = xy, interval="confidence")
+ci <- data.frame(lower=yhat[, "lwr"], upper=yhat[, "upr"])
+lines(xy$weight, ci$lower, lty = 2, lwd=2, col="red")
+lines(xy$weight, ci$upper, lty = 2, lwd=2, col="red")
+
+# Intervalli previsione
+yhatob <- predict(roller.lm, newdata = xy, interval="prediction")
+ciob <- data.frame(lower=yhatob[, "lwr"], upper=yhatob[, "upr"])
+lines(xy$weight, ciob$lower, lty = 2, lwd=2)
+lines(xy$weight, ciob$upper, lty = 2, lwd=2)
+```
+
+### Plot dei residui parziali 
+
+```{r}
+mod <- lm(time ~ climb + dist, data=DAAG::nihills)
+
+par(mfrow=c(1,2))
+
+# su primo termine, con Standard Error
+termplot(mod, terms=1, partial.resid=TRUE, lwd.term=2,lwd.se=2,pch=20,
+smooth=panel.smooth, col.smth="blue", col.res="gray30", se=T)
+
+# su secondo termine, senza Standard Error
+termplot(mod, terms=2, partial.resid=TRUE, lwd.term=2,lwd.se=2,pch=20,
+smooth=panel.smooth, col.smth="blue", col.res="gray30")
+
+par(mfrow=c(1,1))
+```
+
+
+
+

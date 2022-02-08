@@ -1,0 +1,44 @@
+---
+title: "Riepilogo Strumenti Avanzati"
+author: "Emanuele Lena - 142411@uniud"
+date: "8/2/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Riepilogo strumenti (più o meno) avanzati vari
+
+## TODO: scrivere esempio chiaro
+
+EDA/analisi preliminare:  
+
+* plot condizionali
+* interaction plot
+
+Modelli lineari:
+
+* plot dei modelli lineari di analisi della covarianza (1 var numerica e 1 regressore => 1 retta per lv.)
+* CV
+* selez. semi-automatica regressori
+* gestione dell'effetto iterazione
+
+Modelli logistici:
+
+* modello di regressione logistica
+* funzione logistica e passaggio p <--> log(odds)
+* plot fitted values (prob. stimate) vs fattore osservato 
+* precisione previsioni
+* gestione dell'effetto confusione
+
+
+
+
+
+
+
+
+
+

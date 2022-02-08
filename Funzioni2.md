@@ -18,54 +18,10 @@ psych::describe(data)
 
 ### Funzioni analisi univariata
 
-```{r summary-num-and-factor}
-summary.num <- function(x, data=NULL, calcVar=T, calcIndexes=T) {
-  
-  if (!is.null(data)) {
-    x <- data[[x]]
-  } else {
-    varname <- deparse(substitute(x))
-  }
-  
-  s <- summary(x)
-    
-  if (isTRUE(calcVar)) {
-      s["Var."] <- var(x)
-      s["StdDev."] <- sd(x)
-  }
-    
-  if (isTRUE(calcIndexes)) {
-      s["Skew."] <- moments::skewness(x)
-      s["Kurt."] <- moments::kurtosis(x)
-  }
-    
-  return(s)
-}
-
-summary.factor <- function(x, data=NULL, calcRelFreq=T) {
-  
-  if (!is.null(data)) {
-    x <- data[[x]]
-  } else {
-    varname <- deparse(substitute(x))
-  }
-  
-  if (isTRUE(calcRelFreq)) {
-    s <- c()
-    s[["Abs"]] <- table(x)
-    s[["Rel"]] <- table(x)/length(x)
-      
-  return(s)
-  } else {
-    return(table(x))
-  }
-}
-```
 
 
-
-```{r summary-all}
-summary.all <- function(x, calcVar=T, calcIndexes=T, calcRelFreq=T) {
+```r
+summary.all <- function(x, calcVar=T, calcIndexes=T) {
   
   if (is.data.frame(x)) {
     
@@ -80,19 +36,33 @@ summary.all <- function(x, calcVar=T, calcIndexes=T, calcRelFreq=T) {
   } else {
     
     if(is.factor(x)) {
-      summary.num(x, calcVar=calcVar, calcIndexes=calcIndexes)
-    } else {
-      summary.factor(x, calcRelFreq=calcRelFreq)
+      s <- c()
+      s[["Abs"]] <- table(x)
+      s[["Rel"]] <- table(x)/length(x)
+      
+      return(s)
     }
     
+    s <- summary(x)
     
+    if (isTRUE(calcVar)) {
+      s["Var."] <- var(x)
+      s["StdDev."] <- sd(x)
+    }
+    
+    if (isTRUE(calcIndexes)) {
+      s["Skew."] <- moments::skewness(x)
+      s["Kurt."] <- moments::kurtosis(x)
+    }
+    
+    return(s)
   }
 }
-
 ```
 
 
-```{r funzione-summary-categoriali}
+
+```r
 gsummary.factor <- function(variable, data=NULL, stats=F, 
                               plots=c("rel", "pie"), # values: abs | rel | pie  
                               pieLabels=T
@@ -141,13 +111,13 @@ gsummary.factor <- function(variable, data=NULL, stats=F,
 }
 
 # gsummary.factor(mtcars$am, stats = T)
-
 ```
 
 
 
 
-```{r funzione-summary-numeriche}
+
+```r
 gsummary.num <- function(variable, data=NULL, stats=F, 
                          plots=c("rel", "box"), # values: abs | rel | box 
                          normCurve=F    # set T to overlay a norm curve over rel
@@ -167,7 +137,7 @@ gsummary.num <- function(variable, data=NULL, stats=F,
     
     print(paste("SINTESI DI", varname))
     
-    print(summary.num(variable, calcVar = T, calcIndexes = T))
+    summary.all(variable, calcVar = T, calcIndexes = T)
   }
   
   if("abs" %in% plots) {
@@ -192,21 +162,20 @@ gsummary.num <- function(variable, data=NULL, stats=F,
   
   if("box" %in% plots) {
     # boxplot
-    boxplot(variable, main=varname, horizontal = T)
+    boxplot(variable, main=varname)
   }
 
 }
 
 # gsummary.num(mtcars$mpg, stats=T, normCurve = F)
-
 ```
 
 
 
 
 
-```{r funzione-controllo-normalita}
 
+```r
 gsummary.norm <- function(variable, data=NULL, stats=F,
                             statsTest=F, # set true to show tests on symmetry and kurtosis
                             plots=c("qq") # valori: curve, qq
@@ -250,13 +219,13 @@ gsummary.norm <- function(variable, data=NULL, stats=F,
 }
 
 # gsummary.norm(mtcars$mpg, plots = c("curve", "qq"), stats=T, statsTest = T)
-
 ```
 
 
 ### Analisi mutlivariata
 
-```{r funzione-correlazione-num-num}
+
+```r
 cor.check.num <- function(x, y, data=NULL, 
                                   stats=F, 
                                   whichStats=c("pearson", "spearman"), # pearson, spearman, kenadal
@@ -280,10 +249,9 @@ cor.check.num <- function(x, y, data=NULL,
     
     s <- table(c())
     
-    # s["Cov."] <- cov(x, y)
-    
+    s["Cov."] <- cov(x, y)
+
     for (stat in whichStats) {
-      
       s[stat] <- cor(x, y, method = stat)
     }
     
@@ -305,12 +273,12 @@ cor.check.num <- function(x, y, data=NULL,
 }
 
 # cor.check.num(x="disp", y="mpg", data=mtcars, stats = T, whichTests = c("pearson"))
-
 ```
 
 
 
-```{r}
+
+```r
 # pairs(mtcars[, c("mpg", "disp", "hp", "drat")], panel=panel.smooth)
 # cormatrix <- cor(mtcars[, c("mpg", "disp", "hp", "drat")], method = "pearson")
 # cormatrix
@@ -319,9 +287,9 @@ cor.check.num <- function(x, y, data=NULL,
 
 
 
-```{r funzione-correlazione-fattore-numero}
-cor.check.factor.num <- function(xfactor, y, data=NULL, stats=F, doPlot=T, doPlotLines=F, 
-                                 doMeanTest=F, doAnova=F) {
+
+```r
+cor.check.factor.num <- function(xfactor, y, data=NULL, stats=F, doPlot=T, doPlotLines=F) {
   
   if (!is.null(data)) {
     xname <- xfactor
@@ -338,26 +306,15 @@ cor.check.factor.num <- function(xfactor, y, data=NULL, stats=F, doPlot=T, doPlo
     
     print(paste("ANALISI PRELIMINARE DELLA CORRELAZIONE", yname, "~", xname))
     
-    print(tapply(y, xfactor, summary.num))
+    s <- c()
     
-    # s[["Mean"]] <- tapply(y, xfactor, mean)
-    # s[["Median"]] <- tapply(y, xfactor, median)
-    # s[["Var."]] <- tapply(y, xfactor, var)
-    # s[["Std.Dev."]] <- tapply(y, xfactor, sd)
-    # print(s)
+    s[["Mean"]] <- tapply(y, xfactor, mean)
+    s[["Median"]] <- tapply(y, xfactor, median)
+    s[["Var."]] <- tapply(y, xfactor, var)
+    s[["Std.Dev."]] <- tapply(y, xfactor, sd)
+    
+    print(s)
   }
-  
-  if(isTRUE(doMeanTest)) {
-    print(t.test.between.groups(xname, yname, data=data))
-  }
-  
-  if(isTRUE(doAnova)) {
-    m <- aov(y~xfactor)
-    print(summary(m))
-    # print(summary.lm(m))
-  }
-  
-  # (eventua)
   
   if (isTRUE(doPlot)) {
     boxplot(y~xfactor, main=paste(yname, "~", xname), xlab = xname, ylab = yname, col=NULL)
@@ -372,7 +329,8 @@ cor.check.factor.num <- function(xfactor, y, data=NULL, stats=F, doPlot=T, doPlo
 # cor.check.factor.num(xfactor = "carb", y="mpg", data=mtcars, stats=T, doPlot=T, doPlotLines=T)
 ```
 
-```{r funzione-correlazione-fattore-fattore}
+
+```r
 cor.check.factor <- function(x, y, data=NULL, stats=F, doTest=F, doPlot=T) {
   
   if (!is.null(data)) {
@@ -411,92 +369,6 @@ cor.check.factor <- function(x, y, data=NULL, stats=F, doTest=F, doPlot=T) {
 
 # cor.check.factor("cyl", "am", data=mtcars, stats = T, doTest = T, doPlot = T)
 ```
-
-```{r}
-
-t.test.between.groups <- function(groupname, varname, data, 
-                                  type="pairs" # pairs | base | progressive
-                                  ) {
-  
-  if (!is.null(data)) {
-    group <- data[[groupname]]
-    y <- data[[varname]]
-  } else {
-    print("ERROR, data è obbligatorio")
-  }
-  
-  # estraggo i lv. 
-  lvls <- levels(factor(data[[groupname]]))
-    
-  res <- c()
-  
-  if (type=="pairs") {
-    
-    # versione 1: confronti tra tutte le coppie di gruppi
-    i<-1
-    while(i<=length(lvls)-1) {
-      
-      j<-i+1
-      while(j<=length(lvls)){
-        res[[paste("<", lvls[i], ",", lvls[j], ">", sep="")]] <- 
-          t.test(data[data[[groupname]]==lvls[i], varname], data[data[[groupname]]==lvls[j], varname])
-        j<-j+1
-      }
-      
-      i<-i+1
-    }
-    
-    return(res)
-    
-  } else if (type=="base") {
-    
-    # versione 2: confronti progressivi tra tutti i gruppi e quello di base
-    i<-2
-    while(i<=length(lvls)) {
-      
-      res[[paste("<", lvls[1], ",", lvls[i], ">", sep="")]] <- 
-          t.test(data[data[[groupname]]==lvls[1], varname], data[data[[groupname]]==lvls[i], varname])
-      
-      i<-i+1
-    }
-    
-    return(res)
-  
-  } else if (type=="progressive") {
-    # versione 3: confronti tra ogni gruppo e quello successivo 
-    i<-1
-    while(i<=length(lvls)-1) {
-      
-      res[[paste("<", lvls[i], ",", lvls[i+1], ">", sep="")]] <- 
-          t.test(data[data[[groupname]]==lvls[i], varname], data[data[[groupname]]==lvls[i+1], varname])
-      
-      i<-i+1
-    }
-    
-    return(res)
-  }
-  
-  return("ERROR: nessun opzione type selezionata. Scegli tra pairs, base e progressive.")
-}
-
-
-```
-
-
-```{r}
-
-```
-
-
-
-
-
-
-
-
-
-
-
 
 
 
