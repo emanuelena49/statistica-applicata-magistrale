@@ -482,11 +482,17 @@ t.test.between.groups <- function(groupname, varname, data,
 
 ```
 
+## Altro
 
 ```{r}
+glm.mse.train <- function(glmodel) {
+  return(sum(resid(glmodel)^2)/length(glmodel[["fitted.values"]]))
+}
 
+glm.mse.test.cv <- function(glmodel) {
+  return(boot::cv.glm(glmodel[["model"]], glmodel)$delta[2])
+}
 ```
-
 
 
 

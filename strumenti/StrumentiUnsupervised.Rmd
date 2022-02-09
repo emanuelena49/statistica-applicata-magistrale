@@ -1,0 +1,64 @@
+---
+title: "Strumenti - Unsupervised"
+author: "Emanuele Lena - 142411@uniud"
+date: "9/2/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Analisi Componenti Principali (PCA)
+
+
+### Effettuazione della PCA (princomp)
+
+```{r}
+# Effettuazione dell'analisi
+obj <- princomp(USArrests, cor=TRUE)  # cor=TRUE per usare le v. standardizzate
+
+# dev standard di ciascuna componente
+obj$sdev        
+
+# pesi per ciascuna variabile in ciascuna componente
+obj$loadings    
+
+# "punteggi" zi per ciascuna osservazione (in ciascuna componente)
+# obj$scores      
+
+# punteggi zi prima componente
+# obj$scores[,1]  
+
+```
+
+### Visualizzazione delle oss. come score delle prime due princ. componenti (princomp)
+
+```{r}
+obj <- princomp(USArrests, cor=TRUE)
+
+# biplot (dato l'output di princomp)
+biplot(obj, xlab="1st principal component", ylab="2nd principal component", 
+       xlim=c(-3.5,3.5), col=c(1,2), scale=0)
+
+```
+
+### Varianza spiegata dalle componenti (screeplot)
+
+
+```{r}
+par(mfrow=c(1,2), pty="s")
+
+# proporzione di varianza spiegata (screeplot)
+plot(obj$sdev^2/4, xlab="Principal component", ylab="PVE", type="b")
+
+# proporzione cumulativa di varianza spiegata
+plot(cumsum(obj$sdev^2)/4, xlab="Principal component", ylab="Cumulative PVE", ylim=c(0,1), type="b")
+
+# NOTA: [...]/4 perché ho quattro componenti
+par(mfrow=c(1,1))
+```
+
+
+
+

@@ -13,26 +13,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## TODO: scrivere esempio chiaro
 
-EDA/analisi preliminare:  
+Unsup learning:
 
-* plot condizionali
-* interaction plot
-
-Modelli lineari:
-
-* plot dei modelli lineari di analisi della covarianza (1 var numerica e 1 regressore => 1 retta per lv.)
-* CV
-* selez. semi-automatica regressori
-* gestione dell'effetto iterazione
-
-Modelli logistici:
-
-* modello di regressione logistica
-* funzione logistica e passaggio p <--> log(odds)
-* plot fitted values (prob. stimate) vs fattore osservato 
-* precisione previsioni
-* gestione dell'effetto confusione
-
+- analisi dei comp principali
+- biplot
+- scree plot
 
 
 

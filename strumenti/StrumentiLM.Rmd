@@ -9,8 +9,31 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# Strumenti per Regressione Lineare
 
-## Indici e valutazioni varie
+## Creazione di modelli particolari
+
+### Modello con effetto iterazione
+
+[...]
+
+### Modello con formule strane ( I(...) )
+```{r}
+cars1w.lm <- lm(dist ~ speed + I(speed^2),data=datasets::cars)
+```
+
+
+### Modello com stima dei pesata dei minimi quadrati
+
+```{r}
+# utile quando la varianza dei residui dipende da qualche regressore
+# es: nel mod. senza il metodo dei pesi, oss. che i residui aumentano al crescere di speed
+#     => provo a bilanciare in questo modo
+cars2w.lm <- lm(dist ~ speed + I(speed^2),data=datasets::cars,weights=1/speed)
+
+```
+
+## Strumenti di valutazione dei modelli
 
 ### Test ANOVA su modelli annidati
 
@@ -30,6 +53,7 @@ anova(leaf.lm1, leaf.lm2, leaf.lm3, leaf.lm4)
 
 ```{r}
 # Posso fare ANOVA invertendo l'ordine dei parametri per verificare eventuali collinearità
+# se ho almeno un po' di collinearità mi aspetto risultati (fortemente) diversi
 anova(lm(tempDiff ~ CO2level + vapPress, data = DAAG::leaftemp))
 anova(lm(tempDiff ~ vapPress + CO2level, data = DAAG::leaftemp))
 ```
@@ -51,19 +75,11 @@ BIC(mod1, mod2)
 ```
 
 
-### Indice VIF (Variance Inflation factor)
+## Strumenti per migliorare i modelli (selezione scale e regressori)
 
-```{r}
-library(compositions)
-data(Coxite)
-coxite <- as.data.frame(Coxite)
+### Trasformata Boxcox (selezione scala per y)
 
-# "quanto" una certa variabile è correlata con le altre, 
-# elimino la variabile più correlata
-DAAG::vif(lm(porosity ~ A+B+C+D+depth, data=coxite))
-```
-
-### Trasformata Boxcox
+Utile per selezionare una scala per y
 
 ```{r}
 mod <- lm(time ~ climb + dist, data=DAAG::nihills)
@@ -87,67 +103,47 @@ if (max.lambda!=0.0) {
 
 ```
 
-### Training e test MSE (con cross validation)
+### Indice VIF (Variance Inflation factor)
+
+Utile per individuare variabili soggette a collinearità forte (candidate per la rimozione)
 
 ```{r}
-roller.lm <- glm(depression ~ weight,data=DAAG::roller)
+library(compositions)
+data(Coxite)
+coxite <- as.data.frame(Coxite)
 
-# training MSE
-sum(resid(roller.lm)^2)/nrow(DAAG::roller)
- 
-# test MSE (con cross validation)
-boot::cv.glm(DAAG::roller, roller.lm)$delta[2]
-                   
+# "quanto" una certa variabile è correlata con le altre, 
+# elimino la variabile più correlata
+DAAG::vif(lm(porosity ~ A+B+C+D+depth, data=coxite))
+
+# Interpretazione:
+# VIF > 4-5 <-- è presente della multi-collinearità per questa variabile
+# VIF > 10  <-- alta collinearità
+
+# Alternativa
+car::vif(lm(porosity ~ A+B+C+D+depth, data=coxite))
+
+# NOTA: per non eliminare i parametri più importanti, è suggerito l'uso combinato 
+# con i classici coef. di correlazione (conviene )
+cor(coxite$porosity, coxite[,-7], method = "pearson")
 ```
 
-### Training e test MSE (con vera predizione)
+### Scelta regressore da rimuovere (drop1)
 
-???
-
-### Intervalli di confidenza e di predizione
+Utile per individuare come cambia il modello rimuovendo una certa variabile
 
 ```{r}
 
-roller.lm <- lm(depression ~ weight,data=DAAG::roller)
+# criteri scelta rimozione:
+# - test con H1: modello senza questo regressore varia molto
+# - AIC del modello senza regressore
+drop1(lm(dist ~ speed + I(speed^2),data=datasets::cars), test="F", k=2)
 
-# Intervallo di confidenza (intervallo di stima)
-predict(roller.lm, interval="confidence", newdata = data.frame(weight=6))
- 
-# Intervallo di previsione
-predict(roller.lm, interval="prediction", newdata = data.frame(weight=6))
-                   
+# (con k posso "pesare" la complessità del modello nell'AIC)
+
 ```
 
-
-
-## Plot vari
-
-### Plot di un modello (semplice) con gli intervalli (di stima e di previsione)
-
-```{r}
-# Plot punti
-plot(depression ~ weight, data = DAAG::roller,
-xlim=c(0,1.04*max(weight)),ylim=c(0,1.04*max(depression)),
-xlab = "Weight of roller", ylab = "Depression", pch = 16)
-
-# Plot modello
-roller.lm <- lm(depression ~ weight,data=DAAG::roller)
-abline(roller.lm, col="red", lwd=2)
-
-# Intervalli confidenza
-xy <- data.frame(weight = seq(1, 13, 1), 20)
-
-yhat <- predict(roller.lm, newdata = xy, interval="confidence")
-ci <- data.frame(lower=yhat[, "lwr"], upper=yhat[, "upr"])
-lines(xy$weight, ci$lower, lty = 2, lwd=2, col="red")
-lines(xy$weight, ci$upper, lty = 2, lwd=2, col="red")
-
-# Intervalli previsione
-yhatob <- predict(roller.lm, newdata = xy, interval="prediction")
-ciob <- data.frame(lower=yhatob[, "lwr"], upper=yhatob[, "upr"])
-lines(xy$weight, ciob$lower, lty = 2, lwd=2)
-lines(xy$weight, ciob$upper, lty = 2, lwd=2)
-```
+## Strumenti di approfondimento delle diagnostiche
 
 ### Plot dei residui parziali 
 
@@ -167,6 +163,129 @@ smooth=panel.smooth, col.smth="blue", col.res="gray30")
 par(mfrow=c(1,1))
 ```
 
+### dfbetas (variazioni standardizzate dei coeff rimuovendo le oss.)
+```{r}
+# variazioni STANDARDIZZATE di ciascun coefficente di stima rimuovendo le singole osservazioni
+dfbeta(lm(time ~ climb + dist, data=DAAG::nihills))
 
+
+# influence.measures(...)
+```
+
+## Stime e predizioni 
+
+### Training e test MSE (con cross validation)
+
+Utile per conftontare la capacità predittiva di modelli
+
+```{r}
+roller.glm <- glm(depression ~ weight,data=DAAG::roller)
+
+# training MSE
+# sum(resid(roller.glm)^2)/nrow(DAAG::roller)
+glm.mse.train(roller.glm)
+ 
+# test MSE (con cross validation)
+# boot::cv.glm(DAAG::roller, roller.glm)$delta[2]
+glm.mse.test.cv(roller.glm)
+
+```
+
+### Semplice stima
+
+```{r}
+cars2.lm <- lm(dist ~ speed + I(speed^2),data=cars)
+
+# costruzione di nuovi dati
+dat <- data.frame(speed = 10)
+
+# stima
+predict(cars2.lm, newdata=dat)
+
+# stima con standard error
+predict(cars2.lm, newdata=dat, se=T)
+```
+
+### Intervalli di confidenza e di predizione
+
+```{r}
+
+roller.lm <- lm(depression ~ weight,data=DAAG::roller)
+roller.glm <- glm(depression ~ weight,data=DAAG::roller)
+
+
+# Intervallo di confidenza (intervallo di stima)
+predict(roller.lm, interval="confidence", newdata = data.frame(weight=6))
+ 
+# Intervallo di previsione
+predict(roller.lm, interval="prediction", newdata = data.frame(weight=6))
+
+# Intervallo di previsione (con varianza ricavata con CV)
+predict(roller.lm, interval="prediction", newdata = data.frame(weight=6), pred.var=glm.mse.test.cv(roller.glm))
+
+                   
+```
+
+### Plot di un modello (semplice) con gli intervalli di confidenza e di previsione
+
+```{r}
+# Plot punti
+plot(depression ~ weight, data = DAAG::roller,
+xlim=c(0,1.04*max(weight)),ylim=c(0,1.04*max(depression)),
+xlab = "Weight of roller", ylab = "Depression", pch = 16)
+
+# Plot modello
+roller.lm <- lm(depression ~ weight,data=DAAG::roller)
+abline(roller.lm, col="red", lwd=2)
+
+# v. alternativa per plottare i vall fittati 
+# lines(roller.lm$weight, roller.lm$fit, lwd=2)
+
+xy <- data.frame(weight = seq(1, 13, 1), 20)
+
+# Intervalli confidenza
+yhat <- predict(roller.lm, newdata = xy, interval="confidence")
+ci <- data.frame(lower=yhat[, "lwr"], upper=yhat[, "upr"])
+lines(xy$weight, ci$lower, lty = 2, lwd=2, col="red")
+lines(xy$weight, ci$upper, lty = 2, lwd=2, col="red")
+
+# Intervalli previsione
+yhatob <- predict(roller.lm, newdata = xy, interval="prediction")
+ciob <- data.frame(lower=yhatob[, "lwr"], upper=yhatob[, "upr"])
+lines(xy$weight, ciob$lower, lty = 2, lwd=2)
+lines(xy$weight, ciob$upper, lty = 2, lwd=2)
+```
+
+### [lattice] Plot di modello con 1 reg. numerico e 1 fattore (senza effetto iterazione)
+
+```{r}
+library(lattice)
+
+# modello 
+leaf.lm3 <- lm(tempDiff ~ CO2level + vapPress, data = DAAG::leaftemp)
+
+# ottengo i coefficenti (mi servono per disegnare le rette)
+leaf.lm3$coefficients
+
+plot1 <- xyplot(tempDiff ~ vapPress, DAAG::leaftemp, groups=CO2level, 
+                abline = list(a=2.6849,b=-0.8392,col="blue",lwd=2), # retta gruppo 0 (CO2 basso)
+                key=simpleKey(columns=3,text=c("low","medium","high"),col=c("blue","magenta","darkgreen"),
+                              space="top",points=FALSE,cex=1.2), pch=19, lwd=2)
+
+plot2 <- xyplot(tempDiff ~ vapPress, DAAG::leaftemp, groups=CO2level, 
+                abline = list(a=2.6849+0.3199,b=-0.8392,col="magenta",lwd=2), # retta gruppo 1 (CO2 medio)
+                key=simpleKey(columns=3,text=c("low","medium","high"),col=c("blue","magenta","darkgreen"),
+                              space="top",points=FALSE,cex=1.2), pch=19, lwd=2)
+
+plot3 <- xyplot(tempDiff ~ vapPress, DAAG::leaftemp, groups=CO2level, 
+                abline = list(a=2.6849+0.7931,b=-0.8392,col="darkgreen",lwd=2), # retta gruppo 2 (CO2 alto)
+                key=simpleKey(columns=3,text=c("low","medium","high"),col=c("blue","magenta","darkgreen"),
+                              space="top",points=FALSE,cex=1.2), pch=19, lwd=2)
+
+plot1+plot2+plot3
+
+# Se fosse CON effetto iterazione dovrei disegnare rette di pendenza diversa
+# TODO: res. analogo senza lattice
+```
 
 
