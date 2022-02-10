@@ -15,10 +15,15 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Unsup learning:
 
-- analisi dei comp principali
-- biplot
-- scree plot
+- hierarchical clustering
+- dendogramma
 
+- k-means (partitioning clustering)
+- scelta iterativa di k
+- k-means con assegn iniziale
+- k-menoids
+
+(((- model based)))
 
 
 
