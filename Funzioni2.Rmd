@@ -51,9 +51,13 @@ summary.factor <- function(x, data=NULL, calcRelFreq=T) {
   }
   
   if (isTRUE(calcRelFreq)) {
-    s <- c()
-    s[["Abs"]] <- table(x)
-    s[["Rel"]] <- table(x)/length(x)
+    
+    s <- rbind(table(x), table(x)/length(x))
+    # s <- c()
+    # s[["Abs"]] <- 
+    # s[["Rel"]] <- 
+    
+    rownames(s) <- c("F.Abs.", "F.Rel.")
       
   return(s)
   } else {
@@ -71,7 +75,7 @@ summary.all <- function(x, calcVar=T, calcIndexes=T, calcRelFreq=T) {
     
     res <- c()
     
-    for (n in variable.names(x)) {
+    for (n in x.names(x)) {
       res[[n]] <- summary.all(x[[n]])
     }
     
@@ -93,50 +97,49 @@ summary.all <- function(x, calcVar=T, calcIndexes=T, calcRelFreq=T) {
 
 
 ```{r funzione-summary-categoriali}
-gsummary.factor <- function(variable, data=NULL, stats=F, 
+gsummary.factor <- function(x, data=NULL, stats=F, 
                               plots=c("rel", "pie"), # values: abs | rel | pie  
                               pieLabels=T
                                ) {
   
   if (!is.null(data)) {
-    varname <- variable
-    variable <- data[[variable]]
+    varname <- x
+    x <- data[[x]]
     len <- nrow(data)
   } else {
-    len <- length(variable)
-    varname <- deparse(substitute(variable))
+    len <- length(x)
+    varname <- deparse(substitute(x))
   }
   
   # (eventuale) print delle statistiche
   if (isTRUE(stats)) {
     print(paste("SINTESI DI", varname))
-    
-    s <- c()
-    s[[paste("table(", varname ,")", sep="")]] <- table(variable)
-    s[[paste("table(", varname ,")/length(", varname, ")", sep="")]] <- table(variable)/len
-    print(s)
+    print(summary.factor(x))
   }
   
   if("abs" %in% plots) {
     # Barplot con freq assolute
-      barplot(table(variable), main = paste("Frequenze di", varname), xlab = varname)
+      barplot(table(x), main = paste("Frequenze di", varname), xlab = varname)
   }
   
   if("rel" %in% plots) {
     # Barplot con freq relative
-    barplot(table(variable)/len, main = paste("Probabilità di", varname), xlab = varname)
+    barplot(table(x)/len, main = paste("Probabilità di", varname), xlab = varname)
   }
   
   if("pie" %in% plots) {
     # grafico a torta
-    tbl.as.df <- as.data.frame(table(variable))
+    tbl.as.df <- as.data.frame(table(x))
+    
     tbl.as.df$Prob <- tbl.as.df$Freq/len
+    
     if(isTRUE(pieLabels)) {
       tbl.as.df$labels <- paste(tbl.as.df[[1]], ": f=", tbl.as.df$Freq, ", p=", round(tbl.as.df$Prob, 2), sep="")  
     } else {
       tbl.as.df$labels <- tbl.as.df[[1]]
     }
-    pie(table(variable), labels=tbl.as.df$labels, main=varname)
+    
+    pie(table(x), labels=tbl.as.df$labels, main=varname)
   }
 }
 
@@ -148,51 +151,51 @@ gsummary.factor <- function(variable, data=NULL, stats=F,
 
 
 ```{r funzione-summary-numeriche}
-gsummary.num <- function(variable, data=NULL, stats=F, 
+gsummary.num <- function(x, data=NULL, stats=F, 
                          plots=c("rel", "box"), # values: abs | rel | box 
                          normCurve=F    # set T to overlay a norm curve over rel
                          ) {
   
   if (!is.null(data)) {
-    varname <- variable
-    variable <- data[[variable]]
+    varname <- x
+    x <- data[[x]]
   } else {
-    varname <- deparse(substitute(variable))
+    varname <- deparse(substitute(x))
   }
   
   # (eventuale) print delle statistiche
-  s <- summary(variable)
+  s <- summary(x)
   
   if (isTRUE(stats)) {
     
     print(paste("SINTESI DI", varname))
     
-    print(summary.num(variable, calcVar = T, calcIndexes = T))
+    print(summary.num(x, calcVar = T, calcIndexes = T))
   }
   
   if("abs" %in% plots) {
     # istogramma con media e mediana
-    hist(variable, main = paste("Frequenze di", varname), xlab = varname)
-    abline(v=mean(variable), col="red")
-    abline(v=median(variable), col="green")
+    hist(x, main = paste("Frequenze di", varname), xlab = varname)
+    abline(v=mean(x), col="red")
+    abline(v=median(x), col="green")
   }
   
   if("rel" %in% plots) {
     # istogramma delle probabilità con curva di densità e distrib. normale sovrapposta
-    hist(variable, probability=T, main = paste("Densità di", varname), xlab = varname)
-    abline(v=mean(variable), col="red")
-    abline(v=median(variable), col="green")
-    lines(density(variable), col="blue")
+    hist(x, probability=T, main = paste("Densità di", varname), xlab = varname)
+    abline(v=mean(x), col="red")
+    abline(v=median(x), col="green")
+    lines(density(x), col="blue")
     
     if(isTRUE(normCurve)) {
-      x <- seq(min(variable), max(variable), length.out=2500)
-      lines(x, dnorm(x, mean(variable), sd(variable)), col="red")
+      x <- seq(min(x), max(x), length.out=2500)
+      lines(x, dnorm(x, mean(x), sd(x)), col="red")
     }
   }
   
   if("box" %in% plots) {
     # boxplot
-    boxplot(variable, main=varname, horizontal = T)
+    boxplot(x, main=varname, horizontal = T)
   }
 
 }
@@ -207,45 +210,45 @@ gsummary.num <- function(variable, data=NULL, stats=F,
 
 ```{r funzione-controllo-normalita}
 
-gsummary.norm <- function(variable, data=NULL, stats=F,
+gsummary.norm <- function(x, data=NULL, stats=F,
                             statsTest=F, # set true to show tests on symmetry and kurtosis
                             plots=c("qq") # valori: curve, qq
                             ) {
   
   
   if (!is.null(data)) {
-    varname <- variable
-    variable <- data[[variable]]
+    varname <- x
+    x <- data[[x]]
   } else {
-    varname <- deparse(substitute(variable))
+    varname <- deparse(substitute(x))
   }
   
   # (eventuale) print delle statistiche
   if (isTRUE(stats)) {
     
     print(paste("NORMALITA' DI", varname))
-    print(summary.all(variable, calcVar = T, calcIndexes = T)[c("Mean", "Var.", "Skew.", "Kurt.")])
+    print(summary.num(x, calcVar = T, calcIndexes = T)[c("Mean", "Var.", "Skew.", "Kurt.")])
   }
   
   # (eventuale) test sulle statistiche
   if (isTRUE(statsTest)) {
-    print(fBasics::dagoTest(variable))
+    print(fBasics::dagoTest(x))
   }
   
   if ("curve" %in% plots) {
     # istogramma delle probabilità con curva di densità e distrib. normale sovrapposta
-    hist(variable, probability=T, main = paste("Densità di", varname), xlab = varname)
-    abline(v=mean(variable), col="red")
-    abline(v=median(variable), col="green")
-    lines(density(variable), col="blue")
+    hist(x, probability=T, main = paste("Densità di", varname), xlab = varname)
+    abline(v=mean(x), col="red")
+    abline(v=median(x), col="green")
+    lines(density(x), col="blue")
     
-    x <- seq(min(variable), max(variable), length.out=2500)
-    lines(x, dnorm(x, mean(variable), sd(variable)), col="red")
+    x <- seq(min(x), max(x), length.out=2500)
+    lines(x, dnorm(x, mean(x), sd(x)), col="red")
   }
   
   if ("qq" %in% plots) {
-    qqnorm(variable)
-    qqline(variable, col="red")
+    qqnorm(x)
+    qqline(x, col="red")
   }
 }
 
